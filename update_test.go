@@ -183,6 +183,11 @@ func TestCopyPath_Message(t *testing.T) {
 
 	model.copyPath()
 
+	// Skip if clipboard is not available (CI environment)
+	if model.message == "Clipboard not available" {
+		t.Skip("Clipboard not available")
+	}
+
 	// Check message format
 	if !strings.HasPrefix(model.message, "Copied path: ") {
 		t.Errorf("Expected message to start with 'Copied path: ', got %q", model.message)
@@ -203,6 +208,11 @@ func TestCopyFilename_Message(t *testing.T) {
 
 	model.copyFilename()
 
+	// Skip if clipboard is not available (CI environment)
+	if model.message == "Clipboard not available" {
+		t.Skip("Clipboard not available")
+	}
+
 	// Check message format
 	if !strings.HasPrefix(model.message, "Copied name: ") {
 		t.Errorf("Expected message to start with 'Copied name: ', got %q", model.message)
@@ -218,6 +228,11 @@ func TestCopyPath_And_CopyFilename_Different_Messages(t *testing.T) {
 
 	model.copyPath()
 	pathMessage := model.message
+
+	// Skip if clipboard is not available (CI environment)
+	if pathMessage == "Clipboard not available" {
+		t.Skip("Clipboard not available")
+	}
 
 	model.copyFilename()
 	nameMessage := model.message
