@@ -4,7 +4,7 @@ TUI built in Go with Vim keybinds and Git/Jujutsu status display.
 ## Features
 
 - **VCS status display** - Git and Jujutsu (jj) support with color-coded file status
-- **Real-time file watching** - Auto-refresh on file system changes
+- **Real-time file watching** - Auto-refresh on file system changes (toggle with `W`)
 - **Vim like navigation** - `h / j / k / l` keys, `g`/`G` for jump
 - **Mouse support** - Click, double-click, scroll
 - **File operations** - Copy, cut, paste, delete, rename

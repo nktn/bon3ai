@@ -128,7 +128,10 @@ func (m Model) renderNode(node *FileNode, isSelected bool) string {
 
 	// Icon
 	var icon string
-	if node.IsDir {
+	if node.IsGhost {
+		// Ghost file (deleted) - use special icon
+		icon = ""
+	} else if node.IsDir {
 		if node.Expanded {
 			icon = ""
 		} else {
@@ -138,13 +141,27 @@ func (m Model) renderNode(node *FileNode, isSelected bool) string {
 		icon = getFileIcon(node.Name)
 	}
 
-	line := fmt.Sprintf("%s%s %s", indent, icon, node.Name)
+	// Name with strikethrough for ghost files
+	displayName := node.Name
+	if node.IsGhost {
+		// Apply strikethrough using ANSI escape sequence
+		displayName = "\x1b[9m" + node.Name + "\x1b[0m"
+	}
 
-	// Style - determine based on selection, cut, or git status
+	line := fmt.Sprintf("%s%s %s", indent, icon, displayName)
+
+	// Style - determine based on selection, cut, ghost, or git status
 	var style lipgloss.Style
 	isCut := m.clipboard.Type == ClipboardCut && contains(m.clipboard.Paths, node.Path)
 
-	if isSelected {
+	if node.IsGhost {
+		// Ghost files always use deleted style (red)
+		if isSelected {
+			style = selectedStyle.Foreground(lipgloss.Color("196"))
+		} else {
+			style = gitDeletedStyle
+		}
+	} else if isSelected {
 		style = selectedStyle
 	} else if isCut {
 		style = cutStyle

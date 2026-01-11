@@ -48,6 +48,9 @@ type VCSRepo interface {
 
 	// GetType returns the VCS type (Git, JJ, etc.)
 	GetType() VCSType
+
+	// GetDeletedFiles returns a list of deleted file paths (for ghost entries)
+	GetDeletedFiles() []string
 }
 
 // NewVCSRepo creates a new VCSRepo, automatically detecting the VCS type

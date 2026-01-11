@@ -351,3 +351,238 @@ func TestFileTree_FindParentIndex(t *testing.T) {
 		t.Errorf("Expected parent index %d, got %d", dir1Idx, parentIdx)
 	}
 }
+
+// Tests for ghost files (deleted files in VCS)
+
+func TestFileTree_AddGhostNodes(t *testing.T) {
+	dir := setupTestDir(t)
+
+	tree, err := NewFileTree(dir, false)
+	if err != nil {
+		t.Fatalf("Failed to create tree: %v", err)
+	}
+
+	// Simulate a deleted file that would be reported by VCS
+	deletedPath := filepath.Join(dir, "deleted_file.txt")
+
+	// Add ghost node
+	tree.AddGhostNodes([]string{deletedPath})
+
+	// Find the ghost node
+	var foundGhost bool
+	for _, node := range tree.Nodes {
+		if node.Name == "deleted_file.txt" && node.IsGhost {
+			foundGhost = true
+			break
+		}
+	}
+
+	if !foundGhost {
+		t.Error("Expected to find ghost node for deleted file")
+	}
+}
+
+func TestFileTree_AddGhostNodes_InSubdirectory(t *testing.T) {
+	dir := setupTestDir(t)
+
+	tree, err := NewFileTree(dir, false)
+	if err != nil {
+		t.Fatalf("Failed to create tree: %v", err)
+	}
+
+	// Expand dir1
+	for i, node := range tree.Nodes {
+		if node.Name == "dir1" {
+			tree.Expand(i)
+			break
+		}
+	}
+
+	// Simulate a deleted file in dir1
+	deletedPath := filepath.Join(dir, "dir1", "deleted_in_dir1.txt")
+
+	// Add ghost node
+	tree.AddGhostNodes([]string{deletedPath})
+
+	// Find the ghost node
+	var foundGhost bool
+	for _, node := range tree.Nodes {
+		if node.Name == "deleted_in_dir1.txt" && node.IsGhost {
+			foundGhost = true
+			if node.Depth != 2 {
+				t.Errorf("Expected depth 2 for ghost in subdir, got %d", node.Depth)
+			}
+			break
+		}
+	}
+
+	if !foundGhost {
+		t.Error("Expected to find ghost node in subdirectory")
+	}
+}
+
+func TestFileTree_AddGhostNodes_EmptyList(t *testing.T) {
+	dir := setupTestDir(t)
+
+	tree, err := NewFileTree(dir, false)
+	if err != nil {
+		t.Fatalf("Failed to create tree: %v", err)
+	}
+
+	initialLen := tree.Len()
+
+	// Add empty list
+	tree.AddGhostNodes([]string{})
+
+	if tree.Len() != initialLen {
+		t.Errorf("Expected no change with empty list, got %d vs %d", tree.Len(), initialLen)
+	}
+}
+
+func TestFileTree_AddGhostNodes_ParentNotExpanded(t *testing.T) {
+	dir := setupTestDir(t)
+
+	tree, err := NewFileTree(dir, false)
+	if err != nil {
+		t.Fatalf("Failed to create tree: %v", err)
+	}
+
+	// dir1 is not expanded by default
+	deletedPath := filepath.Join(dir, "dir1", "deleted_file.txt")
+
+	initialLen := tree.Len()
+
+	// Add ghost node (should not be added since parent is collapsed)
+	tree.AddGhostNodes([]string{deletedPath})
+
+	// Ghost should not be visible because parent is collapsed
+	if tree.Len() != initialLen {
+		t.Error("Ghost should not be added when parent directory is collapsed")
+	}
+}
+
+func TestFileTree_GhostNode_Properties(t *testing.T) {
+	dir := setupTestDir(t)
+
+	tree, err := NewFileTree(dir, false)
+	if err != nil {
+		t.Fatalf("Failed to create tree: %v", err)
+	}
+
+	deletedPath := filepath.Join(dir, "ghost_test.go")
+	tree.AddGhostNodes([]string{deletedPath})
+
+	// Find and verify ghost node properties
+	for _, node := range tree.Nodes {
+		if node.Name == "ghost_test.go" {
+			if !node.IsGhost {
+				t.Error("Expected IsGhost to be true")
+			}
+			if node.IsDir {
+				t.Error("Ghost file should not be a directory")
+			}
+			if node.Path != deletedPath {
+				t.Errorf("Expected path %s, got %s", deletedPath, node.Path)
+			}
+			return
+		}
+	}
+	t.Error("Ghost node not found")
+}
+
+func TestFileTree_AddGhostNodes_NoDuplicates(t *testing.T) {
+	dir := setupTestDir(t)
+
+	tree, err := NewFileTree(dir, false)
+	if err != nil {
+		t.Fatalf("Failed to create tree: %v", err)
+	}
+
+	deletedPath := filepath.Join(dir, "duplicate_ghost.txt")
+
+	// Add same ghost twice
+	tree.AddGhostNodes([]string{deletedPath})
+	countAfterFirst := tree.Len()
+
+	tree.AddGhostNodes([]string{deletedPath})
+	countAfterSecond := tree.Len()
+
+	if countAfterFirst != countAfterSecond {
+		t.Error("Ghost node should not be duplicated")
+	}
+}
+
+func TestFileTree_AddGhostNodes_AlphabeticalOrder(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create files: aaa.txt, zzz.txt
+	os.WriteFile(filepath.Join(dir, "aaa.txt"), []byte("a"), 0644)
+	os.WriteFile(filepath.Join(dir, "zzz.txt"), []byte("z"), 0644)
+
+	tree, err := NewFileTree(dir, false)
+	if err != nil {
+		t.Fatalf("Failed to create tree: %v", err)
+	}
+
+	// Add ghost file "mmm.txt" - should appear between aaa and zzz
+	deletedPath := filepath.Join(dir, "mmm.txt")
+	tree.AddGhostNodes([]string{deletedPath})
+
+	// Find indices
+	var aaaIdx, mmmIdx, zzzIdx int
+	for i, node := range tree.Nodes {
+		switch node.Name {
+		case "aaa.txt":
+			aaaIdx = i
+		case "mmm.txt":
+			mmmIdx = i
+		case "zzz.txt":
+			zzzIdx = i
+		}
+	}
+
+	// Verify order: aaa < mmm < zzz
+	if !(aaaIdx < mmmIdx && mmmIdx < zzzIdx) {
+		t.Errorf("Ghost file not in alphabetical order: aaa=%d, mmm=%d, zzz=%d", aaaIdx, mmmIdx, zzzIdx)
+	}
+}
+
+func TestFileTree_AddGhostNodes_DirectoriesFirst(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create a directory and a file
+	os.MkdirAll(filepath.Join(dir, "bbb_dir"), 0755)
+	os.WriteFile(filepath.Join(dir, "aaa_file.txt"), []byte("a"), 0644)
+
+	tree, err := NewFileTree(dir, false)
+	if err != nil {
+		t.Fatalf("Failed to create tree: %v", err)
+	}
+
+	// Add ghost file "ccc_ghost.txt"
+	deletedPath := filepath.Join(dir, "ccc_ghost.txt")
+	tree.AddGhostNodes([]string{deletedPath})
+
+	// Find indices (skip root at index 0)
+	var dirIdx, fileIdx, ghostIdx int
+	for i, node := range tree.Nodes {
+		switch node.Name {
+		case "bbb_dir":
+			dirIdx = i
+		case "aaa_file.txt":
+			fileIdx = i
+		case "ccc_ghost.txt":
+			ghostIdx = i
+		}
+	}
+
+	// Verify: directory comes first, then files (including ghost) in alphabetical order
+	if dirIdx > fileIdx || dirIdx > ghostIdx {
+		t.Errorf("Directory should come first: dir=%d, file=%d, ghost=%d", dirIdx, fileIdx, ghostIdx)
+	}
+
+	// aaa_file.txt should come before ccc_ghost.txt (alphabetical)
+	if fileIdx > ghostIdx {
+		t.Errorf("Files should be in alphabetical order: file=%d, ghost=%d", fileIdx, ghostIdx)
+	}
+}

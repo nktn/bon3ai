@@ -8,10 +8,11 @@ import (
 
 // JJRepo holds jujutsu repository information
 type JJRepo struct {
-	Root     string
-	Statuses map[string]VCSStatus
-	ChangeID string   // Short change ID (e.g., "kntqzsqt")
-	Bookmark string   // Current bookmark (similar to git branch)
+	Root         string
+	Statuses     map[string]VCSStatus
+	ChangeID     string   // Short change ID (e.g., "kntqzsqt")
+	Bookmark     string   // Current bookmark (similar to git branch)
+	DeletedFiles []string // Paths of deleted files for ghost entries
 }
 
 // NewJJRepo creates a new JJRepo and loads jj information
@@ -29,6 +30,7 @@ func (j *JJRepo) Refresh(path string) {
 	j.Statuses = make(map[string]VCSStatus)
 	j.ChangeID = ""
 	j.Bookmark = ""
+	j.DeletedFiles = nil
 
 	root := findJJRoot(path)
 	if root == "" {
@@ -108,6 +110,8 @@ func (j *JJRepo) loadStatuses() {
 		return
 	}
 
+	j.DeletedFiles = nil
+
 	// Use jj status to get file changes
 	// jj status output format:
 	// Working copy changes:
@@ -155,8 +159,18 @@ func (j *JJRepo) loadStatuses() {
 		status := parseJJStatus(statusChar)
 		if status != VCSStatusNone {
 			j.Statuses[fullPath] = status
+
+			// Track deleted files for ghost entries
+			if status == VCSStatusDeleted {
+				j.DeletedFiles = append(j.DeletedFiles, fullPath)
+			}
 		}
 	}
+}
+
+// GetDeletedFiles returns paths of deleted files for ghost entries
+func (j *JJRepo) GetDeletedFiles() []string {
+	return j.DeletedFiles
 }
 
 // loadWorkingCopyInfo loads the current change ID and bookmark

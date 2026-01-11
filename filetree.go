@@ -14,6 +14,7 @@ type FileNode struct {
 	Expanded bool
 	Depth    int
 	Children []*FileNode
+	IsGhost  bool // True for deleted files (ghost entries)
 }
 
 // NewFileNode creates a new FileNode
@@ -262,5 +263,78 @@ func (t *FileTree) Refresh() error {
 	}
 
 	t.RebuildFlatList()
+	return nil
+}
+
+// AddGhostNodes adds ghost entries for deleted files from VCS
+func (t *FileTree) AddGhostNodes(deletedPaths []string) {
+	if len(deletedPaths) == 0 {
+		return
+	}
+
+	for _, deletedPath := range deletedPaths {
+		t.addGhostNode(deletedPath)
+	}
+
+	t.RebuildFlatList()
+}
+
+// addGhostNode adds a single ghost node for a deleted file
+func (t *FileTree) addGhostNode(deletedPath string) {
+	parentPath := filepath.Dir(deletedPath)
+
+	// Find the parent node in the tree
+	parentNode := t.findNodeByPath(t.Root, parentPath)
+	if parentNode == nil || !parentNode.IsDir || !parentNode.Expanded {
+		// Parent doesn't exist or isn't expanded, skip
+		return
+	}
+
+	// Check if ghost already exists
+	fileName := filepath.Base(deletedPath)
+	for _, child := range parentNode.Children {
+		if child.Name == fileName {
+			// Already exists (shouldn't happen, but just in case)
+			return
+		}
+	}
+
+	// Create ghost node
+	ghost := &FileNode{
+		Path:     deletedPath,
+		Name:     fileName,
+		IsDir:    false,
+		Expanded: false,
+		Depth:    parentNode.Depth + 1,
+		Children: nil,
+		IsGhost:  true,
+	}
+
+	// Add to parent's children and re-sort (maintain original position by name)
+	parentNode.Children = append(parentNode.Children, ghost)
+	sort.Slice(parentNode.Children, func(i, j int) bool {
+		// Directories first (ghost files are never directories)
+		iIsDir := parentNode.Children[i].IsDir
+		jIsDir := parentNode.Children[j].IsDir
+		if iIsDir != jIsDir {
+			return iIsDir
+		}
+		// Then by name (alphabetical order, ghost files mixed in)
+		return parentNode.Children[i].Name < parentNode.Children[j].Name
+	})
+}
+
+// findNodeByPath finds a node by its path
+func (t *FileTree) findNodeByPath(node *FileNode, path string) *FileNode {
+	if node.Path == path {
+		return node
+	}
+
+	for _, child := range node.Children {
+		if found := t.findNodeByPath(child, path); found != nil {
+			return found
+		}
+	}
+
 	return nil
 }

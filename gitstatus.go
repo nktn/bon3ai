@@ -38,9 +38,10 @@ const (
 
 // GitRepo holds git repository information
 type GitRepo struct {
-	Root     string
-	Statuses map[string]GitStatus
-	Branch   string
+	Root         string
+	Statuses     map[string]GitStatus
+	Branch       string
+	DeletedFiles []string // Paths of deleted files for ghost entries
 }
 
 // NewGitRepo creates a new GitRepo and loads git information
@@ -57,6 +58,7 @@ func (g *GitRepo) Refresh(path string) {
 	g.Root = ""
 	g.Statuses = make(map[string]GitStatus)
 	g.Branch = ""
+	g.DeletedFiles = nil
 
 	root := findGitRoot(path)
 	if root == "" {
@@ -129,6 +131,8 @@ func (g *GitRepo) loadStatuses() {
 		return
 	}
 
+	g.DeletedFiles = nil
+
 	// Get modified/staged/untracked files
 	output, err := exec.Command("git", "-C", g.Root, "status", "--porcelain", "-uall").Output()
 	if err == nil {
@@ -152,6 +156,11 @@ func (g *GitRepo) loadStatuses() {
 			fullPath := normalizePath(filepath.Join(g.Root, filePath))
 			status := parseGitStatus(indexStatus, worktreeStatus)
 			g.Statuses[fullPath] = status
+
+			// Track deleted files for ghost entries
+			if status == GitStatusDeleted {
+				g.DeletedFiles = append(g.DeletedFiles, fullPath)
+			}
 		}
 	}
 
@@ -166,6 +175,11 @@ func (g *GitRepo) loadStatuses() {
 			}
 		}
 	}
+}
+
+// GetDeletedFiles returns paths of deleted files for ghost entries
+func (g *GitRepo) GetDeletedFiles() []string {
+	return g.DeletedFiles
 }
 
 // findGitRoot finds the git repository root for the given path

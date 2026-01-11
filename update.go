@@ -66,6 +66,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Refresh tree on file system changes
 		if m.watcherEnabled {
 			m.tree.Refresh()
+
+			// Add ghost nodes for deleted files (using existing VCS data)
+			m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
+
 			m.adjustSelection()
 
 			var cmds []tea.Cmd
@@ -91,7 +95,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.watcherToggling = false
 
 	case vcsRefreshDoneMsg:
-		// VCS refresh completed in background, UI will reflect updated status
+		// VCS refresh completed in background
+		// Add ghost nodes for deleted files
+		m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
 	}
 
 	return m, nil

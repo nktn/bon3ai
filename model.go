@@ -145,6 +145,9 @@ func NewModel(path string) (Model, error) {
 
 	vcsRepo := NewVCSRepo(tree.Root.Path)
 
+	// Add ghost nodes for deleted files from VCS
+	tree.AddGhostNodes(vcsRepo.GetDeletedFiles())
+
 	// Create file watcher (ignore errors, watching is optional)
 	watcher, _ := NewWatcher(tree.Root.Path)
 
