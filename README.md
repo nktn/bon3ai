@@ -22,7 +22,8 @@ A fast, lightweight file explorer TUI built in Go with Vim keybindings and Git/J
 
 ```bash
 git clone https://github.com/nktn/bon3ai.git
-go build -o bin/bon3ai .
+cd bon3ai
+make build
 ```
 
 ## Usage
