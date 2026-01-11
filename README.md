@@ -110,9 +110,9 @@ bon3ai ~/Documents  # Specific directory
 | Gray | Ignored |
 | Magenta | Conflict |
 
-## VCS Support
+## VCS Status Display
 
-bon3ai automatically detects the version control system:
+bon3ai automatically detects the version control system and shows status:
 
 - **Git**: Shows branch name in status bar (e.g., ` main`)
 - **Jujutsu (jj)**: Shows change ID and bookmark (e.g., ` @hogehoge (main)`)
