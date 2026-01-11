@@ -1,0 +1,788 @@
+package main
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"runtime"
+	"strings"
+	"time"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
+
+// Update implements tea.Model
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		// Handle paste (drag & drop sends text as paste)
+		if msg.Paste {
+			for _, r := range msg.Runes {
+				m.dropBuffer += string(r)
+			}
+			m.lastCharTime = time.Now()
+			return m, nil
+		}
+
+		switch m.inputMode {
+		case ModeNormal:
+			return m.updateNormalMode(msg)
+		case ModeSearch, ModeRename, ModeNewFile, ModeNewDir:
+			return m.updateInputMode(msg)
+		case ModeConfirmDelete:
+			return m.updateConfirmMode(msg)
+		case ModePreview:
+			return m.updatePreviewMode(msg)
+		}
+
+	case tea.MouseMsg:
+		if m.inputMode == ModeNormal {
+			return m.updateMouseEvent(msg)
+		}
+
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height - 3
+
+	case tickMsg:
+		m.checkDropBuffer()
+		return m, tickCmd()
+	}
+
+	return m, nil
+}
+
+func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	// Clear message if not buffering drop
+	if m.dropBuffer == "" {
+		m.message = ""
+	}
+
+	switch msg.String() {
+	case "q", "ctrl+c":
+		return m, tea.Quit
+
+	// Navigation
+	case "up", "k":
+		m.moveUp()
+	case "down", "j":
+		m.moveDown()
+	case "g":
+		m.selected = 0
+	case "G":
+		m.selected = m.tree.Len() - 1
+
+	// Expand/Collapse
+	case "enter", "l":
+		m.expandCurrent()
+	case "backspace", "h":
+		m.collapseCurrent()
+	case "tab":
+		m.tree.ToggleExpand(m.selected)
+	case "H":
+		m.collapseAll()
+	case "L":
+		m.expandAll()
+
+	// Marking
+	case " ":
+		m.toggleMark()
+	case "esc":
+		m.clearMarks()
+
+	// Clipboard
+	case "y":
+		m.yank()
+	case "d":
+		m.cut()
+	case "p":
+		m.paste()
+
+	// Delete
+	case "D", "delete":
+		m.confirmDelete()
+
+	// File operations
+	case "r":
+		m.startRename()
+	case "a":
+		m.startNewFile()
+	case "A":
+		m.startNewDir()
+
+	// Search
+	case "/":
+		m.startSearch()
+	case "n":
+		m.searchNext()
+
+	// Preview
+	case "o":
+		m.openPreview()
+
+	// System clipboard
+	case "c":
+		m.copyPath()
+	case "C":
+		m.copyFilename()
+
+	// Other
+	case ".":
+		m.toggleHidden()
+	case "R", "f5":
+		m.refresh()
+	case "?":
+		m.message = "o:preview c:path C:name y:yank d:cut p:paste D:del r:rename"
+	}
+
+	m.adjustScroll()
+	return m, nil
+}
+
+func (m Model) updateInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "enter":
+		m.confirmInput()
+	case "esc":
+		m.cancelInput()
+	case "backspace":
+		if len(m.inputBuffer) > 0 {
+			m.inputBuffer = m.inputBuffer[:len(m.inputBuffer)-1]
+		}
+	default:
+		if len(msg.String()) == 1 {
+			m.inputBuffer += msg.String()
+		}
+	}
+
+	m.adjustScroll()
+	return m, nil
+}
+
+func (m Model) updateConfirmMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch msg.String() {
+	case "y", "Y", "enter":
+		m.executeDelete()
+		m.inputMode = ModeNormal
+	case "n", "N", "esc":
+		m.inputMode = ModeNormal
+		m.message = "Cancelled"
+	}
+
+	return m, nil
+}
+
+func (m Model) updatePreviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	visibleHeight := m.height - 4
+
+	switch msg.String() {
+	case "q", "esc", "o":
+		m.closePreview()
+
+	// Scroll
+	case "up", "k":
+		if m.previewScroll > 0 {
+			m.previewScroll--
+		}
+	case "down", "j":
+		maxScroll := len(m.previewContent) - visibleHeight
+		if maxScroll < 0 {
+			maxScroll = 0
+		}
+		if m.previewScroll < maxScroll {
+			m.previewScroll++
+		}
+
+	// Page scroll
+	case "pgup", "b":
+		m.previewScroll -= visibleHeight
+		if m.previewScroll < 0 {
+			m.previewScroll = 0
+		}
+	case "pgdown", "f", " ":
+		maxScroll := len(m.previewContent) - visibleHeight
+		if maxScroll < 0 {
+			maxScroll = 0
+		}
+		m.previewScroll += visibleHeight
+		if m.previewScroll > maxScroll {
+			m.previewScroll = maxScroll
+		}
+
+	// Jump to top/bottom
+	case "g":
+		m.previewScroll = 0
+	case "G":
+		maxScroll := len(m.previewContent) - visibleHeight
+		if maxScroll < 0 {
+			maxScroll = 0
+		}
+		m.previewScroll = maxScroll
+	}
+
+	return m, nil
+}
+
+func (m Model) updateMouseEvent(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	switch msg.Action {
+	case tea.MouseActionPress:
+		if msg.Button == tea.MouseButtonLeft {
+			// Tree area starts at row 1 (after title)
+			if msg.Y > 0 {
+				row := msg.Y - 1
+				index := m.scrollOffset + row
+				if index < m.tree.Len() {
+					now := time.Now()
+					isDoubleClick := m.lastClickIndex == index &&
+						now.Sub(m.lastClickTime).Milliseconds() < 400
+
+					m.selected = index
+					m.lastClickTime = now
+					m.lastClickIndex = index
+
+					if isDoubleClick {
+						m.tree.ToggleExpand(m.selected)
+					}
+				}
+			}
+		}
+
+	case tea.MouseActionMotion:
+		// Ignore motion events
+
+	default:
+		// Handle scroll wheel
+		if msg.Button == tea.MouseButtonWheelUp {
+			for i := 0; i < 3; i++ {
+				m.moveUp()
+			}
+		} else if msg.Button == tea.MouseButtonWheelDown {
+			for i := 0; i < 3; i++ {
+				m.moveDown()
+			}
+		}
+	}
+
+	m.adjustScroll()
+	return m, nil
+}
+
+// Navigation
+func (m *Model) moveUp() {
+	if m.selected > 0 {
+		m.selected--
+	}
+}
+
+func (m *Model) moveDown() {
+	if m.selected < m.tree.Len()-1 {
+		m.selected++
+	}
+}
+
+func (m *Model) expandCurrent() {
+	node := m.tree.GetNode(m.selected)
+	if node != nil && node.IsDir && !node.Expanded {
+		m.tree.Expand(m.selected)
+	}
+}
+
+func (m *Model) collapseCurrent() {
+	node := m.tree.GetNode(m.selected)
+	if node == nil {
+		return
+	}
+
+	if node.IsDir && node.Expanded {
+		m.tree.Collapse(m.selected)
+	} else {
+		parentIdx := m.tree.FindParentIndex(m.selected)
+		if parentIdx >= 0 {
+			m.selected = parentIdx
+		}
+	}
+}
+
+func (m *Model) collapseAll() {
+	m.tree.CollapseAll()
+	m.selected = 0
+	m.scrollOffset = 0
+	m.message = "Collapsed all"
+}
+
+func (m *Model) expandAll() {
+	if err := m.tree.ExpandAll(); err != nil {
+		m.message = fmt.Sprintf("Error: %v", err)
+	} else {
+		m.message = "Expanded all"
+	}
+}
+
+// Marking
+func (m *Model) toggleMark() {
+	node := m.tree.GetNode(m.selected)
+	if node == nil {
+		return
+	}
+
+	if m.marked[node.Path] {
+		delete(m.marked, node.Path)
+	} else {
+		m.marked[node.Path] = true
+	}
+	m.moveDown()
+}
+
+func (m *Model) clearMarks() {
+	m.marked = make(map[string]bool)
+	m.message = "Marks cleared"
+}
+
+func (m *Model) getSelectedPaths() []string {
+	if len(m.marked) > 0 {
+		paths := make([]string, 0, len(m.marked))
+		for path := range m.marked {
+			paths = append(paths, path)
+		}
+		return paths
+	}
+
+	node := m.tree.GetNode(m.selected)
+	if node != nil {
+		return []string{node.Path}
+	}
+	return nil
+}
+
+// Clipboard operations
+func (m *Model) yank() {
+	paths := m.getSelectedPaths()
+	if len(paths) == 0 {
+		return
+	}
+
+	m.clipboard.Copy(paths)
+	m.marked = make(map[string]bool) // Clear marks without overwriting message
+	m.message = fmt.Sprintf("Copied %d item(s)", len(paths))
+}
+
+func (m *Model) cut() {
+	paths := m.getSelectedPaths()
+	if len(paths) == 0 {
+		return
+	}
+
+	m.clipboard.Cut(paths)
+	m.message = fmt.Sprintf("Cut %d item(s)", len(paths))
+}
+
+func (m *Model) paste() {
+	if m.clipboard.IsEmpty() {
+		m.message = "Clipboard is empty"
+		return
+	}
+
+	destDir := m.getPasteDestination()
+	if destDir == "" {
+		return
+	}
+
+	var success int
+	for _, path := range m.clipboard.Paths {
+		var err error
+		if m.clipboard.Type == ClipboardCopy {
+			_, err = CopyFile(path, destDir)
+		} else {
+			_, err = MoveFile(path, destDir)
+		}
+		if err == nil {
+			success++
+		}
+	}
+
+	if m.clipboard.Type == ClipboardCut {
+		m.clipboard.Clear()
+		m.clearMarks()
+	}
+
+	m.message = fmt.Sprintf("Pasted %d item(s)", success)
+	m.tree.Refresh()
+	m.adjustSelection()
+}
+
+func (m *Model) getPasteDestination() string {
+	node := m.tree.GetNode(m.selected)
+	if node == nil {
+		return ""
+	}
+
+	if node.IsDir {
+		return node.Path
+	}
+	return filepath.Dir(node.Path)
+}
+
+// Delete
+func (m *Model) confirmDelete() {
+	paths := m.getSelectedPaths()
+	if len(paths) == 0 {
+		return
+	}
+
+	// Check if any path is a directory
+	hasDirectories := false
+	for _, path := range paths {
+		info, err := os.Stat(path)
+		if err == nil && info.IsDir() {
+			hasDirectories = true
+			break
+		}
+	}
+
+	m.deletePaths = paths
+	m.deleteHasDirectories = hasDirectories
+	m.inputMode = ModeConfirmDelete
+}
+
+func (m *Model) executeDelete() {
+	paths := m.getSelectedPaths()
+	var success int
+
+	for _, path := range paths {
+		if err := DeleteFile(path); err == nil {
+			success++
+		}
+	}
+
+	m.marked = make(map[string]bool) // Clear marks without overwriting message
+	m.tree.Refresh()
+	m.adjustSelection()
+	m.message = fmt.Sprintf("Deleted %d item(s)", success)
+}
+
+// File operations
+func (m *Model) startRename() {
+	node := m.tree.GetNode(m.selected)
+	if node == nil {
+		return
+	}
+
+	m.inputBuffer = node.Name
+	m.inputMode = ModeRename
+}
+
+func (m *Model) startNewFile() {
+	m.inputBuffer = ""
+	m.inputMode = ModeNewFile
+}
+
+func (m *Model) startNewDir() {
+	m.inputBuffer = ""
+	m.inputMode = ModeNewDir
+}
+
+func (m *Model) confirmInput() {
+	switch m.inputMode {
+	case ModeRename:
+		m.doRename()
+	case ModeNewFile:
+		m.doNewFile()
+	case ModeNewDir:
+		m.doNewDir()
+	case ModeSearch:
+		// Check if input looks like a dropped file path
+		if m.tryHandleAsDrop() {
+			m.inputMode = ModeNormal
+			m.inputBuffer = ""
+			return
+		}
+		m.searchNext()
+	}
+
+	m.inputMode = ModeNormal
+}
+
+func (m *Model) cancelInput() {
+	m.inputMode = ModeNormal
+	m.inputBuffer = ""
+}
+
+func (m *Model) doRename() {
+	node := m.tree.GetNode(m.selected)
+	if node == nil || m.inputBuffer == "" {
+		return
+	}
+
+	newPath, err := RenameFile(node.Path, m.inputBuffer)
+	if err != nil {
+		m.message = fmt.Sprintf("Error: %v", err)
+	} else {
+		m.message = fmt.Sprintf("Renamed to %s", filepath.Base(newPath))
+		m.tree.Refresh()
+	}
+	m.inputBuffer = ""
+}
+
+func (m *Model) doNewFile() {
+	if m.inputBuffer == "" {
+		return
+	}
+
+	destDir := m.getPasteDestination()
+	newPath, err := CreateFile(destDir, m.inputBuffer)
+	if err != nil {
+		m.message = fmt.Sprintf("Error: %v", err)
+	} else {
+		m.message = fmt.Sprintf("Created %s", filepath.Base(newPath))
+		m.tree.Refresh()
+	}
+	m.inputBuffer = ""
+}
+
+func (m *Model) doNewDir() {
+	if m.inputBuffer == "" {
+		return
+	}
+
+	destDir := m.getPasteDestination()
+	newPath, err := CreateDirectory(destDir, m.inputBuffer)
+	if err != nil {
+		m.message = fmt.Sprintf("Error: %v", err)
+	} else {
+		m.message = fmt.Sprintf("Created %s", filepath.Base(newPath))
+		m.tree.Refresh()
+	}
+	m.inputBuffer = ""
+}
+
+// Search
+func (m *Model) startSearch() {
+	m.inputBuffer = ""
+	m.inputMode = ModeSearch
+}
+
+func (m *Model) searchNext() {
+	if m.inputBuffer == "" {
+		return
+	}
+
+	query := strings.ToLower(m.inputBuffer)
+	start := m.selected + 1
+	length := m.tree.Len()
+
+	for i := 0; i < length; i++ {
+		idx := (start + i) % length
+		node := m.tree.GetNode(idx)
+		if node != nil && strings.Contains(strings.ToLower(node.Name), query) {
+			m.selected = idx
+			return
+		}
+	}
+
+	m.message = "No match found"
+}
+
+// Preview
+func (m *Model) openPreview() {
+	node := m.tree.GetNode(m.selected)
+	if node == nil {
+		return
+	}
+
+	if node.IsDir {
+		m.message = "Cannot preview directory"
+		return
+	}
+
+	content, err := os.ReadFile(node.Path)
+	if err != nil {
+		m.message = fmt.Sprintf("Error: %v", err)
+		return
+	}
+
+	m.previewPath = node.Path
+	m.previewScroll = 0
+
+	// Check if binary
+	if isBinaryContent(content) {
+		m.previewIsBinary = true
+		m.previewContent = formatHexPreview(content)
+	} else {
+		m.previewIsBinary = false
+		m.previewContent = strings.Split(string(content), "\n")
+	}
+
+	m.inputMode = ModePreview
+}
+
+func (m *Model) closePreview() {
+	m.inputMode = ModeNormal
+	m.previewContent = nil
+	m.previewPath = ""
+	m.previewScroll = 0
+}
+
+func isBinaryContent(content []byte) bool {
+	// Check first 512 bytes for null bytes or high ratio of non-printable chars
+	checkLen := len(content)
+	if checkLen > 512 {
+		checkLen = 512
+	}
+
+	nonPrintable := 0
+	for i := 0; i < checkLen; i++ {
+		b := content[i]
+		if b == 0 {
+			return true
+		}
+		if b < 32 && b != '\n' && b != '\r' && b != '\t' {
+			nonPrintable++
+		}
+	}
+
+	return float64(nonPrintable)/float64(checkLen) > 0.3
+}
+
+func formatHexPreview(content []byte) []string {
+	var lines []string
+	maxBytes := 1600 // 100 lines of 16 bytes
+
+	if len(content) > maxBytes {
+		content = content[:maxBytes]
+	}
+
+	for i := 0; i < len(content); i += 16 {
+		end := i + 16
+		if end > len(content) {
+			end = len(content)
+		}
+		chunk := content[i:end]
+
+		// Hex part
+		hexParts := make([]string, len(chunk))
+		for j, b := range chunk {
+			hexParts[j] = fmt.Sprintf("%02x", b)
+		}
+		hexStr := strings.Join(hexParts, " ")
+
+		// Pad hex string
+		for len(hexStr) < 47 {
+			hexStr += " "
+		}
+
+		// ASCII part
+		ascii := make([]byte, len(chunk))
+		for j, b := range chunk {
+			if b >= 32 && b < 127 {
+				ascii[j] = b
+			} else {
+				ascii[j] = '.'
+			}
+		}
+
+		lines = append(lines, fmt.Sprintf("%08x  %s  %s", i, hexStr, string(ascii)))
+	}
+
+	if len(content) == maxBytes {
+		lines = append(lines, "... (truncated)")
+	}
+
+	return lines
+}
+
+// Other
+func (m *Model) toggleHidden() {
+	m.showHidden = !m.showHidden
+	if err := m.tree.SetShowHidden(m.showHidden); err != nil {
+		m.message = fmt.Sprintf("Error: %v", err)
+	} else {
+		if m.showHidden {
+			m.message = "Showing hidden files"
+		} else {
+			m.message = "Hiding hidden files"
+		}
+	}
+	m.adjustSelection()
+}
+
+func (m *Model) refresh() {
+	if err := m.tree.Refresh(); err != nil {
+		m.message = fmt.Sprintf("Error: %v", err)
+	} else {
+		m.message = "Refreshed"
+	}
+	m.vcsRepo.Refresh(m.tree.Root.Path)
+	m.adjustSelection()
+}
+
+func (m *Model) adjustSelection() {
+	if m.selected >= m.tree.Len() {
+		m.selected = m.tree.Len() - 1
+	}
+	if m.selected < 0 {
+		m.selected = 0
+	}
+}
+
+func (m *Model) adjustScroll() {
+	visibleHeight := m.height - 2
+
+	if m.selected < m.scrollOffset {
+		m.scrollOffset = m.selected
+	} else if m.selected >= m.scrollOffset+visibleHeight {
+		m.scrollOffset = m.selected - visibleHeight + 1
+	}
+}
+
+// copyToSystemClipboard copies text to the system clipboard
+func copyToSystemClipboard(text string) error {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("pbcopy")
+	case "linux":
+		// Try xclip first, then xsel
+		if _, err := exec.LookPath("xclip"); err == nil {
+			cmd = exec.Command("xclip", "-selection", "clipboard")
+		} else if _, err := exec.LookPath("xsel"); err == nil {
+			cmd = exec.Command("xsel", "--clipboard", "--input")
+		} else {
+			return fmt.Errorf("no clipboard tool found (install xclip or xsel)")
+		}
+	case "windows":
+		cmd = exec.Command("clip")
+	default:
+		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
+	}
+
+	cmd.Stdin = strings.NewReader(text)
+	return cmd.Run()
+}
+
+func (m *Model) copyPath() {
+	node := m.tree.GetNode(m.selected)
+	if node == nil {
+		return
+	}
+
+	if err := copyToSystemClipboard(node.Path); err != nil {
+		m.message = "Clipboard not available"
+	} else {
+		m.message = fmt.Sprintf("Copied path: %s", node.Path)
+	}
+}
+
+func (m *Model) copyFilename() {
+	node := m.tree.GetNode(m.selected)
+	if node == nil {
+		return
+	}
+
+	if err := copyToSystemClipboard(node.Name); err != nil {
+		m.message = "Clipboard not available"
+	} else {
+		m.message = fmt.Sprintf("Copied name: %s", node.Name)
+	}
+}
