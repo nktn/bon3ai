@@ -1,11 +1,11 @@
 # bon3ai - File Tree Explorer
-
-A fast, lightweight file explorer TUI built in Go with Vim keybindings and Git/Jujutsu status display.
+TUI built in Go with Vim keybinds and Git/Jujutsu status display.
 
 ## Features
 
 - **VCS status display** - Git and Jujutsu (jj) support with color-coded file status
-- **Vim-style navigation** - `hjkl` keys, `g`/`G` for jump
+- **Real-time file watching** - Auto-refresh on file system changes
+- **Vim like navigation** - `h / j / k / l` keys, `g`/`G` for jump
 - **Mouse support** - Click, double-click, scroll
 - **File operations** - Copy, cut, paste, delete, rename
 - **Multi-select** - Mark multiple files with `Space`
@@ -18,12 +18,16 @@ A fast, lightweight file explorer TUI built in Go with Vim keybindings and Git/J
 
 ## Installation
 
+```bash
+go install github.com/nktn/bon3ai@latest
+```
+
 ### From source
 
 ```bash
 git clone https://github.com/nktn/bon3ai.git
 cd bon3ai
-make build
+go build
 ```
 
 ## Usage
@@ -54,7 +58,7 @@ bon3ai ~/Documents  # Specific directory
 |-----|--------|
 | `Space` | Mark/unmark file |
 | `Esc` | Clear all marks |
-| `y` | Yank (copy) |
+| `y` | Yank |
 | `d` | Cut |
 | `p` | Paste |
 | `D` / `Delete` | Delete |
@@ -69,6 +73,7 @@ bon3ai ~/Documents  # Specific directory
 |-----|--------|
 | `.` | Toggle hidden files |
 | `R` / `F5` | Reload tree |
+| `W` | Toggle file watching |
 
 ### Preview Mode
 

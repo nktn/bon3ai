@@ -119,6 +119,7 @@ type Model struct {
 	// Mouse support
 	lastClickTime  time.Time
 	lastClickIndex int
+	lastScrollTime time.Time
 
 	// Drop detection
 	dropBuffer   string
@@ -127,6 +128,12 @@ type Model struct {
 	// Delete confirmation info
 	deletePaths          []string
 	deleteHasDirectories bool
+
+	// File watcher
+	watcher          *Watcher
+	watcherEnabled   bool
+	watcherToggling  bool
+	lastVCSRefresh   time.Time
 }
 
 // NewModel creates a new Model
@@ -137,6 +144,9 @@ func NewModel(path string) (Model, error) {
 	}
 
 	vcsRepo := NewVCSRepo(tree.Root.Path)
+
+	// Create file watcher (ignore errors, watching is optional)
+	watcher, _ := NewWatcher(tree.Root.Path)
 
 	return Model{
 		tree:           tree,
@@ -151,12 +161,18 @@ func NewModel(path string) (Model, error) {
 		lastClickTime:  time.Now(),
 		lastClickIndex: -1,
 		lastCharTime:   time.Now(),
+		watcher:        watcher,
+		watcherEnabled: watcher != nil,
 	}, nil
 }
 
 // Init implements tea.Model
 func (m Model) Init() tea.Cmd {
-	return tickCmd()
+	cmds := []tea.Cmd{tickCmd()}
+	if m.watcher != nil && m.watcherEnabled {
+		cmds = append(cmds, m.watcher.Watch())
+	}
+	return tea.Batch(cmds...)
 }
 
 func tickCmd() tea.Cmd {

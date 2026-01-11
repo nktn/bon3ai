@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestIsBinaryContent(t *testing.T) {
@@ -350,10 +351,11 @@ func TestRefresh_Message(t *testing.T) {
 		t.Fatalf("Failed to create model: %v", err)
 	}
 
-	model.refresh()
+	newModel, _ := model.refresh()
+	m := newModel.(Model)
 
-	if model.message != "Refreshed" {
-		t.Errorf("Expected 'Refreshed', got %q", model.message)
+	if m.message != "Refreshed" {
+		t.Errorf("Expected 'Refreshed', got %q", m.message)
 	}
 }
 
@@ -425,5 +427,293 @@ func TestHelpMessage(t *testing.T) {
 
 	if model.message != expectedHelp {
 		t.Errorf("Expected help message, got %q", model.message)
+	}
+}
+
+// Tests for async VCS refresh
+
+func TestRefreshVCSAsync_ReturnsCmd(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+
+	cmd := model.refreshVCSAsync()
+	if cmd == nil {
+		t.Error("Expected refreshVCSAsync to return a tea.Cmd, got nil")
+	}
+}
+
+func TestRefresh_ReturnsAsyncCmd(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+
+	_, cmd := model.refresh()
+	if cmd == nil {
+		t.Error("Expected refresh to return a tea.Cmd for async VCS, got nil")
+	}
+}
+
+func TestFileChangeMsg_WatcherDisabled_NoVCSRefresh(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+
+	// Disable watcher
+	model.watcherEnabled = false
+	model.lastVCSRefresh = time.Time{} // Reset to zero time
+
+	// Send FileChangeMsg
+	newModel, cmd := model.Update(FileChangeMsg{})
+	m := newModel.(Model)
+
+	// Should not trigger any commands when watcher is disabled
+	if cmd != nil {
+		t.Error("Expected no cmd when watcher is disabled")
+	}
+
+	// lastVCSRefresh should remain unchanged (zero)
+	if !m.lastVCSRefresh.IsZero() {
+		t.Error("VCS refresh should not have been triggered when watcher is disabled")
+	}
+}
+
+func TestFileChangeMsg_WatcherEnabled_TriggersVCSRefresh(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+
+	// Enable watcher but set watcher to nil (we just test the logic)
+	model.watcherEnabled = true
+	model.watcher = nil
+	model.lastVCSRefresh = time.Time{} // Reset to zero time
+
+	// Send FileChangeMsg
+	newModel, cmd := model.Update(FileChangeMsg{})
+	m := newModel.(Model)
+
+	// Should trigger VCS refresh cmd
+	if cmd == nil {
+		t.Error("Expected cmd for VCS refresh when watcher is enabled")
+	}
+
+	// lastVCSRefresh should be updated
+	if m.lastVCSRefresh.IsZero() {
+		t.Error("lastVCSRefresh should have been updated")
+	}
+}
+
+func TestFileChangeMsg_VCSRefreshThrottle(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+
+	// Enable watcher
+	model.watcherEnabled = true
+	model.watcher = nil
+
+	// Set lastVCSRefresh to recent time (within 5 seconds)
+	model.lastVCSRefresh = time.Now()
+
+	// Send FileChangeMsg
+	newModel, cmd := model.Update(FileChangeMsg{})
+	m := newModel.(Model)
+
+	// cmd should be nil or just a batch with no VCS refresh
+	// The tree refresh still happens, but VCS refresh should be throttled
+	// Since watcher is nil, cmd should be nil (no watcher.Watch() and no VCS refresh)
+	if cmd != nil {
+		t.Log("Cmd returned (expected nil or batch without VCS refresh)")
+	}
+
+	// Verify that lastVCSRefresh was NOT updated (throttled)
+	if m.lastVCSRefresh.After(model.lastVCSRefresh) {
+		t.Error("VCS refresh should have been throttled (lastVCSRefresh should not be updated)")
+	}
+}
+
+func TestFileChangeMsg_VCSRefreshAfterThrottleExpires(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+
+	// Enable watcher
+	model.watcherEnabled = true
+	model.watcher = nil
+
+	// Set lastVCSRefresh to 6 seconds ago (beyond 5 second throttle)
+	model.lastVCSRefresh = time.Now().Add(-6 * time.Second)
+	oldRefreshTime := model.lastVCSRefresh
+
+	// Send FileChangeMsg
+	newModel, cmd := model.Update(FileChangeMsg{})
+	m := newModel.(Model)
+
+	// Should trigger VCS refresh
+	if cmd == nil {
+		t.Error("Expected VCS refresh cmd after throttle expires")
+	}
+
+	// lastVCSRefresh should be updated
+	if !m.lastVCSRefresh.After(oldRefreshTime) {
+		t.Error("lastVCSRefresh should have been updated after throttle expired")
+	}
+}
+
+// Tests for watcher toggle
+
+func TestToggleWatcher_EnableFromDisabled(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+
+	// Start with watcher disabled
+	if model.watcher != nil {
+		model.watcher.Close()
+	}
+	model.watcher = nil
+	model.watcherEnabled = false
+	model.watcherToggling = false
+
+	// Toggle ON
+	newModel, cmd := model.toggleWatcher()
+	m := newModel.(Model)
+
+	if !m.watcherEnabled {
+		t.Error("Expected watcherEnabled to be true after toggle ON")
+	}
+	if m.watcher == nil {
+		t.Error("Expected watcher to be created after toggle ON")
+	}
+	if m.message != "File watching enabled" {
+		t.Errorf("Expected 'File watching enabled', got %q", m.message)
+	}
+	if cmd == nil {
+		t.Error("Expected cmd to be returned for watcher")
+	}
+
+	// Cleanup
+	if m.watcher != nil {
+		m.watcher.Close()
+	}
+}
+
+func TestToggleWatcher_DisableFromEnabled(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+
+	// Start with watcher enabled
+	model.watcherEnabled = true
+	model.watcherToggling = false
+	// watcher is already created by NewModel
+
+	// Toggle OFF
+	newModel, cmd := model.toggleWatcher()
+	m := newModel.(Model)
+
+	if m.watcherEnabled {
+		t.Error("Expected watcherEnabled to be false after toggle OFF")
+	}
+	if m.watcher != nil {
+		t.Error("Expected watcher to be nil after toggle OFF")
+	}
+	if m.message != "File watching disabled (R to refresh)" {
+		t.Errorf("Expected 'File watching disabled (R to refresh)', got %q", m.message)
+	}
+	if cmd == nil {
+		t.Error("Expected cmd for watcherToggledMsg")
+	}
+}
+
+func TestToggleWatcher_IgnoredWhileToggling(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+
+	// Set toggling in progress
+	model.watcherToggling = true
+	originalEnabled := model.watcherEnabled
+
+	// Try to toggle (should be ignored)
+	newModel, cmd := model.toggleWatcher()
+	m := newModel.(Model)
+
+	if m.watcherEnabled != originalEnabled {
+		t.Error("Toggle should have been ignored while toggling")
+	}
+	if cmd != nil {
+		t.Error("Expected nil cmd when toggle is ignored")
+	}
+}
+
+func TestWatcherToggledMsg_ResetsTogglingFlag(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+
+	// Set toggling in progress
+	model.watcherToggling = true
+
+	// Send watcherToggledMsg
+	newModel, _ := model.Update(watcherToggledMsg{})
+	m := newModel.(Model)
+
+	if m.watcherToggling {
+		t.Error("Expected watcherToggling to be false after watcherToggledMsg")
+	}
+}
+
+func TestToggleWatcher_WatcherClosedOnDisable(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+
+	// Ensure watcher is created and enabled
+	if model.watcher == nil {
+		watcher, err := NewWatcher(tmpDir)
+		if err != nil {
+			t.Fatalf("Failed to create watcher: %v", err)
+		}
+		model.watcher = watcher
+	}
+	model.watcherEnabled = true
+	model.watcherToggling = false
+
+	// Get watcher count before disable
+	watchedBefore := model.watcher.WatchedCount()
+	if watchedBefore == 0 {
+		t.Log("Warning: No paths being watched initially")
+	}
+
+	// Toggle OFF
+	newModel, _ := model.toggleWatcher()
+	m := newModel.(Model)
+
+	// Watcher should be nil (closed and removed)
+	if m.watcher != nil {
+		t.Error("Expected watcher to be nil after disable (should be closed)")
 	}
 }

@@ -12,6 +12,19 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// vcsRefreshDoneMsg is sent when async VCS refresh completes
+type vcsRefreshDoneMsg struct{}
+
+// refreshVCSAsync runs VCS refresh in background goroutine
+func (m Model) refreshVCSAsync() tea.Cmd {
+	rootPath := m.tree.Root.Path
+	vcsRepo := m.vcsRepo
+	return func() tea.Msg {
+		vcsRepo.Refresh(rootPath)
+		return vcsRefreshDoneMsg{}
+	}
+}
+
 // Update implements tea.Model
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
@@ -48,6 +61,37 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tickMsg:
 		m.checkDropBuffer()
 		return m, tickCmd()
+
+	case FileChangeMsg:
+		// Refresh tree on file system changes
+		if m.watcherEnabled {
+			m.tree.Refresh()
+			m.adjustSelection()
+
+			var cmds []tea.Cmd
+
+			// Continue watching
+			if m.watcher != nil {
+				cmds = append(cmds, m.watcher.Watch())
+			}
+
+			// Throttle VCS refresh to every 5 seconds (git/jj status is expensive)
+			// Run asynchronously to avoid blocking UI
+			now := time.Now()
+			if now.Sub(m.lastVCSRefresh) >= 5*time.Second {
+				m.lastVCSRefresh = now
+				cmds = append(cmds, m.refreshVCSAsync())
+			}
+
+			return m, tea.Batch(cmds...)
+		}
+
+	case watcherToggledMsg:
+		// Toggle complete, allow next toggle
+		m.watcherToggling = false
+
+	case vcsRefreshDoneMsg:
+		// VCS refresh completed in background, UI will reflect updated status
 	}
 
 	return m, nil
@@ -61,6 +105,9 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.String() {
 	case "q", "ctrl+c":
+		if m.watcher != nil {
+			m.watcher.Close()
+		}
 		return m, tea.Quit
 
 	// Navigation
@@ -79,7 +126,7 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "backspace", "h":
 		m.collapseCurrent()
 	case "tab":
-		m.tree.ToggleExpand(m.selected)
+		m.toggleExpand()
 	case "H":
 		m.collapseAll()
 	case "L":
@@ -131,7 +178,9 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case ".":
 		m.toggleHidden()
 	case "R", "f5":
-		m.refresh()
+		return m.refresh()
+	case "W":
+		return m.toggleWatcher()
 	case "?":
 		m.message = "o:preview c:path C:name y:yank d:cut p:paste D:del r:rename"
 	}
@@ -225,6 +274,31 @@ func (m Model) updatePreviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) updateMouseEvent(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
+	// Handle scroll wheel first (regardless of action type)
+	switch msg.Button {
+	case tea.MouseButtonWheelUp:
+		// Debounce scroll events (50ms)
+		now := time.Now()
+		if now.Sub(m.lastScrollTime).Milliseconds() < 50 {
+			return m, nil
+		}
+		m.lastScrollTime = now
+		m.moveUp()
+		m.adjustScroll()
+		return m, nil
+	case tea.MouseButtonWheelDown:
+		// Debounce scroll events (50ms)
+		now := time.Now()
+		if now.Sub(m.lastScrollTime).Milliseconds() < 50 {
+			return m, nil
+		}
+		m.lastScrollTime = now
+		m.moveDown()
+		m.adjustScroll()
+		return m, nil
+	}
+
+	// Handle other mouse events
 	switch msg.Action {
 	case tea.MouseActionPress:
 		if msg.Button == tea.MouseButtonLeft {
@@ -242,7 +316,7 @@ func (m Model) updateMouseEvent(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 					m.lastClickIndex = index
 
 					if isDoubleClick {
-						m.tree.ToggleExpand(m.selected)
+						m.toggleExpand()
 					}
 				}
 			}
@@ -250,18 +324,6 @@ func (m Model) updateMouseEvent(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 
 	case tea.MouseActionMotion:
 		// Ignore motion events
-
-	default:
-		// Handle scroll wheel
-		if msg.Button == tea.MouseButtonWheelUp {
-			for i := 0; i < 3; i++ {
-				m.moveUp()
-			}
-		} else if msg.Button == tea.MouseButtonWheelDown {
-			for i := 0; i < 3; i++ {
-				m.moveDown()
-			}
-		}
 	}
 
 	m.adjustScroll()
@@ -285,6 +347,25 @@ func (m *Model) expandCurrent() {
 	node := m.tree.GetNode(m.selected)
 	if node != nil && node.IsDir && !node.Expanded {
 		m.tree.Expand(m.selected)
+		// Add expanded directory to watcher
+		if m.watcher != nil {
+			m.watcher.AddPath(node.Path)
+		}
+	}
+}
+
+func (m *Model) toggleExpand() {
+	node := m.tree.GetNode(m.selected)
+	if node == nil || !node.IsDir {
+		return
+	}
+
+	wasExpanded := node.Expanded
+	m.tree.ToggleExpand(m.selected)
+
+	// Add to watcher if now expanded
+	if !wasExpanded && m.watcher != nil {
+		m.watcher.AddPath(node.Path)
 	}
 }
 
@@ -316,6 +397,10 @@ func (m *Model) expandAll() {
 		m.message = fmt.Sprintf("Error: %v", err)
 	} else {
 		m.message = "Expanded all"
+		// Watch all expanded directories
+		if m.watcher != nil {
+			m.watcher.WatchExpandedDirs(m.tree)
+		}
 	}
 }
 
@@ -706,14 +791,53 @@ func (m *Model) toggleHidden() {
 	m.adjustSelection()
 }
 
-func (m *Model) refresh() {
+func (m Model) refresh() (tea.Model, tea.Cmd) {
 	if err := m.tree.Refresh(); err != nil {
 		m.message = fmt.Sprintf("Error: %v", err)
 	} else {
 		m.message = "Refreshed"
 	}
-	m.vcsRepo.Refresh(m.tree.Root.Path)
 	m.adjustSelection()
+	// VCS refresh runs asynchronously
+	return m, m.refreshVCSAsync()
+}
+
+// watcherToggledMsg is sent when watcher toggle is complete
+type watcherToggledMsg struct{}
+
+func (m Model) toggleWatcher() (tea.Model, tea.Cmd) {
+	// Ignore if already toggling
+	if m.watcherToggling {
+		return m, nil
+	}
+	m.watcherToggling = true
+
+	if !m.watcherEnabled {
+		// Enable: Create new watcher
+		watcher, err := NewWatcher(m.tree.Root.Path)
+		if err != nil {
+			m.message = "Failed to enable watching"
+			m.watcherToggling = false
+			return m, nil
+		}
+		m.watcher = watcher
+		m.watcher.WatchExpandedDirs(m.tree)
+		m.watcherEnabled = true
+		m.message = "File watching enabled"
+		return m, tea.Batch(
+			m.watcher.Watch(),
+			func() tea.Msg { return watcherToggledMsg{} },
+		)
+	} else {
+		// Disable: Stop and close watcher
+		if m.watcher != nil {
+			m.watcher.Close()
+			m.watcher = nil
+		}
+		m.watcherEnabled = false
+		m.message = "File watching disabled (R to refresh)"
+		return m, func() tea.Msg { return watcherToggledMsg{} }
+	}
 }
 
 func (m *Model) adjustSelection() {
