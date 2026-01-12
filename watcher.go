@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -41,7 +42,36 @@ func NewWatcher(rootPath string) (*Watcher, error) {
 		return nil, err
 	}
 
+	// Watch VCS directories for status changes
+	w.watchVCSDirs(rootPath)
+
 	return w, nil
+}
+
+// watchVCSDirs watches VCS directories (.git, .jj) for status changes
+func (w *Watcher) watchVCSDirs(rootPath string) {
+	// Watch .git directory
+	gitDir := filepath.Join(rootPath, ".git")
+	if info, err := os.Stat(gitDir); err == nil && info.IsDir() {
+		// Watch .git/index (staging changes, commits)
+		w.addPath(gitDir)
+		// Watch .git/refs/heads for branch updates
+		refsHeads := filepath.Join(gitDir, "refs", "heads")
+		if info, err := os.Stat(refsHeads); err == nil && info.IsDir() {
+			w.addPath(refsHeads)
+		}
+	}
+
+	// Watch .jj directory
+	jjDir := filepath.Join(rootPath, ".jj")
+	if info, err := os.Stat(jjDir); err == nil && info.IsDir() {
+		w.addPath(jjDir)
+		// Watch .jj/repo/op_store for operation changes
+		opStore := filepath.Join(jjDir, "repo", "op_store")
+		if info, err := os.Stat(opStore); err == nil && info.IsDir() {
+			w.addPath(opStore)
+		}
+	}
 }
 
 // addPath adds a path to watch (internal, with tracking)

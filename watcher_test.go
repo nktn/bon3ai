@@ -238,3 +238,69 @@ func TestWatcher_NilWatcher(t *testing.T) {
 		t.Errorf("Close on nil watcher should return nil, got %v", err)
 	}
 }
+
+func TestWatcher_WatchesGitDir(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .git directory structure
+	gitDir := filepath.Join(tmpDir, ".git")
+	refsHeads := filepath.Join(gitDir, "refs", "heads")
+	os.MkdirAll(refsHeads, 0755)
+
+	w, err := NewWatcher(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create watcher: %v", err)
+	}
+	defer w.Close()
+
+	// Should be watching root, .git, and refs/heads
+	if count := w.WatchedCount(); count < 3 {
+		t.Errorf("Expected at least 3 watched paths (root, .git, refs/heads), got %d", count)
+	}
+
+	// Verify .git is being watched
+	w.mu.Lock()
+	gitWatched := w.watched[gitDir]
+	refsWatched := w.watched[refsHeads]
+	w.mu.Unlock()
+
+	if !gitWatched {
+		t.Error("Expected .git directory to be watched")
+	}
+	if !refsWatched {
+		t.Error("Expected .git/refs/heads directory to be watched")
+	}
+}
+
+func TestWatcher_WatchesJJDir(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .jj directory structure
+	jjDir := filepath.Join(tmpDir, ".jj")
+	opStore := filepath.Join(jjDir, "repo", "op_store")
+	os.MkdirAll(opStore, 0755)
+
+	w, err := NewWatcher(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create watcher: %v", err)
+	}
+	defer w.Close()
+
+	// Should be watching root, .jj, and op_store
+	if count := w.WatchedCount(); count < 3 {
+		t.Errorf("Expected at least 3 watched paths (root, .jj, op_store), got %d", count)
+	}
+
+	// Verify .jj is being watched
+	w.mu.Lock()
+	jjWatched := w.watched[jjDir]
+	opStoreWatched := w.watched[opStore]
+	w.mu.Unlock()
+
+	if !jjWatched {
+		t.Error("Expected .jj directory to be watched")
+	}
+	if !opStoreWatched {
+		t.Error("Expected .jj/repo/op_store directory to be watched")
+	}
+}
