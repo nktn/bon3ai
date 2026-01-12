@@ -6,8 +6,7 @@ build:
 	go build -o $(BINARY_NAME)
 
 install:
-	go build -o $(BINARY_NAME)
-	mv $(BINARY_NAME) $(GOPATH)/bin/
+	go build -o $(shell go env GOPATH)/bin/$(BINARY_NAME)
 
 test:
 	go test -v ./...
