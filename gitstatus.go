@@ -1,8 +1,10 @@
 package main
 
 import (
+	"fmt"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -41,6 +43,7 @@ type GitRepo struct {
 	Root         string
 	Statuses     map[string]GitStatus
 	Branch       string
+	Ahead        int      // Number of commits ahead of upstream
 	DeletedFiles []string // Paths of deleted files for ghost entries
 }
 
@@ -58,6 +61,7 @@ func (g *GitRepo) Refresh(path string) {
 	g.Root = ""
 	g.Statuses = make(map[string]GitStatus)
 	g.Branch = ""
+	g.Ahead = 0
 	g.DeletedFiles = nil
 
 	root := findGitRoot(path)
@@ -68,6 +72,7 @@ func (g *GitRepo) Refresh(path string) {
 	g.Root = root
 	g.loadStatuses()
 	g.Branch = getCurrentBranch(root)
+	g.Ahead = getAheadCount(root)
 }
 
 // GetStatus returns the git status for a given path
@@ -112,6 +117,9 @@ func (g *GitRepo) IsInsideRepo() bool {
 
 // GetDisplayInfo returns the branch name for display in status bar
 func (g *GitRepo) GetDisplayInfo() string {
+	if g.Ahead > 0 {
+		return fmt.Sprintf("%s ↑%d", g.Branch, g.Ahead)
+	}
 	return g.Branch
 }
 
@@ -198,6 +206,21 @@ func getCurrentBranch(root string) string {
 		return ""
 	}
 	return strings.TrimSpace(string(output))
+}
+
+// getAheadCount returns the number of commits ahead of upstream
+func getAheadCount(root string) int {
+	// Get count of commits ahead of upstream
+	output, err := exec.Command("git", "-C", root, "rev-list", "--count", "@{upstream}..HEAD").Output()
+	if err != nil {
+		// No upstream or other error
+		return 0
+	}
+	count, err := strconv.Atoi(strings.TrimSpace(string(output)))
+	if err != nil {
+		return 0
+	}
+	return count
 }
 
 // parseGitStatus parses the two-character git status code

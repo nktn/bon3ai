@@ -328,3 +328,51 @@ func TestGitRepo_IsInsideRepo(t *testing.T) {
 		t.Error("Non-empty root should be inside repo")
 	}
 }
+
+func TestGetAheadCount_NoUpstream(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	tmpDir := t.TempDir()
+	exec.Command("git", "-C", tmpDir, "init", "-b", "main").Run()
+	exec.Command("git", "-C", tmpDir, "config", "user.email", "test@test.com").Run()
+	exec.Command("git", "-C", tmpDir, "config", "user.name", "Test").Run()
+
+	// Create a commit
+	testFile := filepath.Join(tmpDir, "test.txt")
+	os.WriteFile(testFile, []byte("test"), 0644)
+	exec.Command("git", "-C", tmpDir, "add", ".").Run()
+	exec.Command("git", "-C", tmpDir, "commit", "-m", "init").Run()
+
+	// No upstream set, should return 0
+	ahead := getAheadCount(tmpDir)
+	if ahead != 0 {
+		t.Errorf("Expected 0 ahead count without upstream, got %d", ahead)
+	}
+}
+
+func TestGetDisplayInfo_WithAhead(t *testing.T) {
+	repo := &GitRepo{
+		Branch: "main",
+		Ahead:  3,
+	}
+
+	display := repo.GetDisplayInfo()
+	expected := "main ↑3"
+	if display != expected {
+		t.Errorf("Expected %q, got %q", expected, display)
+	}
+}
+
+func TestGetDisplayInfo_NoAhead(t *testing.T) {
+	repo := &GitRepo{
+		Branch: "main",
+		Ahead:  0,
+	}
+
+	display := repo.GetDisplayInfo()
+	if display != "main" {
+		t.Errorf("Expected 'main', got %q", display)
+	}
+}
