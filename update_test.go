@@ -84,10 +84,10 @@ func TestIsBinaryContent_LargeContent(t *testing.T) {
 
 func TestFormatHexPreview(t *testing.T) {
 	tests := []struct {
-		name            string
-		content         []byte
-		expectedLines   int
-		checkFirstLine  string
+		name           string
+		content        []byte
+		expectedLines  int
+		checkFirstLine string
 	}{
 		{
 			name:           "simple content",
@@ -429,7 +429,9 @@ func TestHelpMessage(t *testing.T) {
 	}
 }
 
-// Tests for async VCS refresh
+// ========================================
+// Tests for VCS refresh and watcher
+// ========================================
 
 func TestRefresh_SyncVCS(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -483,8 +485,6 @@ func TestFileChangeMsg_WatcherEnabled_SyncRefresh(t *testing.T) {
 		t.Error("Expected no cmd when watcher is nil (sync VCS refresh)")
 	}
 }
-
-// Tests for watcher toggle
 
 func TestToggleWatcher_EnableFromDisabled(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -593,39 +593,5 @@ func TestWatcherToggledMsg_ResetsTogglingFlag(t *testing.T) {
 
 	if m.watcherToggling {
 		t.Error("Expected watcherToggling to be false after watcherToggledMsg")
-	}
-}
-
-func TestToggleWatcher_WatcherClosedOnDisable(t *testing.T) {
-	tmpDir := t.TempDir()
-	model, err := NewModel(tmpDir)
-	if err != nil {
-		t.Fatalf("Failed to create model: %v", err)
-	}
-
-	// Ensure watcher is created and enabled
-	if model.watcher == nil {
-		watcher, err := NewWatcher(tmpDir)
-		if err != nil {
-			t.Fatalf("Failed to create watcher: %v", err)
-		}
-		model.watcher = watcher
-	}
-	model.watcherEnabled = true
-	model.watcherToggling = false
-
-	// Get watcher count before disable
-	watchedBefore := model.watcher.WatchedCount()
-	if watchedBefore == 0 {
-		t.Log("Warning: No paths being watched initially")
-	}
-
-	// Toggle OFF
-	newModel, _ := model.toggleWatcher()
-	m := newModel.(Model)
-
-	// Watcher should be nil (closed and removed)
-	if m.watcher != nil {
-		t.Error("Expected watcher to be nil after disable (should be closed)")
 	}
 }

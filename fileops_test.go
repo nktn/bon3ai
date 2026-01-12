@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -193,6 +194,142 @@ func TestMoveFile_Directory(t *testing.T) {
 
 	// Check source is gone
 	if _, err := os.Stat(subDir); !os.IsNotExist(err) {
+		t.Error("Source directory should not exist after move")
+	}
+}
+
+func TestMoveFile_UniqueNaming(t *testing.T) {
+	srcDir := t.TempDir()
+	destDir := t.TempDir()
+
+	// Create source file
+	srcFile := filepath.Join(srcDir, "test.txt")
+	os.WriteFile(srcFile, []byte("source"), 0644)
+
+	// Create existing file with same name in dest
+	os.WriteFile(filepath.Join(destDir, "test.txt"), []byte("existing"), 0644)
+
+	destPath, err := MoveFile(srcFile, destDir)
+	if err != nil {
+		t.Fatalf("MoveFile failed: %v", err)
+	}
+
+	// Should be renamed to test_1.txt
+	expectedName := "test_1.txt"
+	if filepath.Base(destPath) != expectedName {
+		t.Errorf("Expected %s, got %s", expectedName, filepath.Base(destPath))
+	}
+
+	// Check content of moved file
+	content, _ := os.ReadFile(destPath)
+	if string(content) != "source" {
+		t.Errorf("Expected 'source', got '%s'", string(content))
+	}
+
+	// Original should be gone
+	if _, err := os.Stat(srcFile); !os.IsNotExist(err) {
+		t.Error("Source file should not exist after move")
+	}
+}
+
+func TestMoveFile_NonExistent(t *testing.T) {
+	destDir := t.TempDir()
+
+	_, err := MoveFile("/nonexistent/path/file.txt", destDir)
+	if err == nil {
+		t.Error("MoveFile should return error for non-existent source")
+	}
+}
+
+func TestMoveFile_NestedDirectory(t *testing.T) {
+	srcDir := t.TempDir()
+	destDir := t.TempDir()
+
+	// Create nested directory structure
+	nestedDir := filepath.Join(srcDir, "parent", "child", "grandchild")
+	os.MkdirAll(nestedDir, 0755)
+	os.WriteFile(filepath.Join(nestedDir, "deep.txt"), []byte("deep content"), 0644)
+
+	// Move parent directory
+	parentDir := filepath.Join(srcDir, "parent")
+	destPath, err := MoveFile(parentDir, destDir)
+	if err != nil {
+		t.Fatalf("MoveFile nested directory failed: %v", err)
+	}
+
+	// Check nested structure is preserved
+	deepFile := filepath.Join(destPath, "child", "grandchild", "deep.txt")
+	content, err := os.ReadFile(deepFile)
+	if err != nil {
+		t.Fatalf("Failed to read deep file: %v", err)
+	}
+	if string(content) != "deep content" {
+		t.Errorf("Expected 'deep content', got '%s'", string(content))
+	}
+
+	// Source should be gone
+	if _, err := os.Stat(parentDir); !os.IsNotExist(err) {
+		t.Error("Source directory should not exist after move")
+	}
+}
+
+func TestMoveFile_MultipleUniqueNames(t *testing.T) {
+	srcDir := t.TempDir()
+	destDir := t.TempDir()
+
+	// Create existing files with sequential names
+	os.WriteFile(filepath.Join(destDir, "test.txt"), []byte("existing"), 0644)
+	os.WriteFile(filepath.Join(destDir, "test_1.txt"), []byte("existing1"), 0644)
+	os.WriteFile(filepath.Join(destDir, "test_2.txt"), []byte("existing2"), 0644)
+
+	// Create source file
+	srcFile := filepath.Join(srcDir, "test.txt")
+	os.WriteFile(srcFile, []byte("source"), 0644)
+
+	destPath, err := MoveFile(srcFile, destDir)
+	if err != nil {
+		t.Fatalf("MoveFile failed: %v", err)
+	}
+
+	// Should be renamed to test_3.txt
+	expectedName := "test_3.txt"
+	if filepath.Base(destPath) != expectedName {
+		t.Errorf("Expected %s, got %s", expectedName, filepath.Base(destPath))
+	}
+}
+
+func TestMoveFile_DirectoryWithMultipleFiles(t *testing.T) {
+	srcDir := t.TempDir()
+	destDir := t.TempDir()
+
+	// Create directory with multiple files
+	moveDir := filepath.Join(srcDir, "multifiles")
+	os.MkdirAll(moveDir, 0755)
+	os.WriteFile(filepath.Join(moveDir, "file1.txt"), []byte("content1"), 0644)
+	os.WriteFile(filepath.Join(moveDir, "file2.txt"), []byte("content2"), 0644)
+	os.WriteFile(filepath.Join(moveDir, "file3.txt"), []byte("content3"), 0644)
+
+	destPath, err := MoveFile(moveDir, destDir)
+	if err != nil {
+		t.Fatalf("MoveFile directory with multiple files failed: %v", err)
+	}
+
+	// Check all files were moved
+	for i := 1; i <= 3; i++ {
+		filename := filepath.Join(destPath, fmt.Sprintf("file%d.txt", i))
+		content, err := os.ReadFile(filename)
+		if err != nil {
+			t.Errorf("Failed to read file%d.txt: %v", i, err)
+			continue
+		}
+		expected := fmt.Sprintf("content%d", i)
+		if string(content) != expected {
+			t.Errorf("file%d.txt: expected '%s', got '%s'", i, expected, string(content))
+		}
+	}
+
+	// Source should be gone
+	if _, err := os.Stat(moveDir); !os.IsNotExist(err) {
 		t.Error("Source directory should not exist after move")
 	}
 }

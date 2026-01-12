@@ -74,9 +74,21 @@ Both implementations propagate file status to parent directories for visual indi
 
 ### Performance Optimizations
 
-- **Async VCS Refresh**: Git/Jujutsu status runs in background goroutine to avoid UI blocking
-- **VCS Throttling**: VCS refresh limited to every 5 seconds (tree refresh remains immediate)
+- **Sync VCS Refresh**: Git/Jujutsu status runs synchronously for simplicity and correctness
 - **Watcher Toggle**: When disabled, watcher is fully closed (zero performance impact)
+- **VCS Directory Watching**: Watches `.git` and `.jj` directories to detect commits/status changes
+
+## Documentation
+
+- **docs/state-machine.md**: InputMode の状態遷移図（Mermaid形式）
+
+### 重要: ステートマシン図の更新
+
+InputMode に関する変更を行った場合は、必ず以下を確認・更新すること:
+
+1. `docs/state-machine.md` の状態遷移図が実装と一致しているか確認
+2. 新しい状態や遷移を追加した場合は図を更新
+3. `README.md` のキーバインド表と整合性があるか確認
 
 ## Key Dependencies
 

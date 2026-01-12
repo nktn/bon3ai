@@ -33,3 +33,6 @@ go.work.sum
 .vscode/
 *.swp
 *.swo
+
+# Claude Code
+.claude/settings.local.json
