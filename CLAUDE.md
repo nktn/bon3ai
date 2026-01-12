@@ -9,18 +9,21 @@ bon3ai is a file explorer TUI (Terminal User Interface) built in Go using the Bu
 ## Development Commands
 
 ```bash
-# Install
-go install github.com/nktn/bon3ai@latest
-
 # Build
-go build
+make build          # Creates ./bon3
+
+# Install to $GOPATH/bin
+make install
 
 # Run
-./bon3ai [path]
+./bon3 [path]
 
 # Test
-go test -v ./...              # Run all tests
+make test                     # Run all tests
 go test -v -run TestName      # Run specific test
+
+# Clean
+make clean
 ```
 
 ## Architecture

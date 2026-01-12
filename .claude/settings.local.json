@@ -5,7 +5,8 @@
       "Bash(go version:*)",
       "Bash(go get:*)",
       "Bash(go build:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(make build:*)"
     ]
   }
 }

@@ -1,5 +1,8 @@
 # bon3ai - File Tree Explorer
-TUI built in Go with Vim keybinds and Git/Jujutsu status display.
+
+A TUI file explorer built in Go with Vim keybinds and Git/Jujutsu status display.
+
+> **Note:** The project is called **bon3ai**, but the command is **`bon3`** 
 
 ## Features
 
@@ -18,23 +21,25 @@ TUI built in Go with Vim keybinds and Git/Jujutsu status display.
 
 ## Installation
 
-```bash
-go install github.com/nktn/bon3ai@latest
-```
-
 ### From source
 
 ```bash
 git clone https://github.com/nktn/bon3ai.git
 cd bon3ai
-go build
+make install
+```
+
+### Manual build
+
+```bash
+make build   # Creates ./bon3
 ```
 
 ## Usage
 
 ```bash
-bon3ai              # Current directory
-bon3ai ~/Documents  # Specific directory
+bon3              # Current directory
+bon3 ~/Documents  # Specific directory
 ```
 
 ## Keybindings
