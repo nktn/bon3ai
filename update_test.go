@@ -3,7 +3,6 @@ package main
 import (
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestIsBinaryContent(t *testing.T) {
@@ -432,33 +431,21 @@ func TestHelpMessage(t *testing.T) {
 
 // Tests for async VCS refresh
 
-func TestRefreshVCSAsync_ReturnsCmd(t *testing.T) {
+func TestRefresh_SyncVCS(t *testing.T) {
 	tmpDir := t.TempDir()
 	model, err := NewModel(tmpDir)
 	if err != nil {
 		t.Fatalf("Failed to create model: %v", err)
 	}
 
-	cmd := model.refreshVCSAsync()
-	if cmd == nil {
-		t.Error("Expected refreshVCSAsync to return a tea.Cmd, got nil")
-	}
-}
-
-func TestRefresh_ReturnsAsyncCmd(t *testing.T) {
-	tmpDir := t.TempDir()
-	model, err := NewModel(tmpDir)
-	if err != nil {
-		t.Fatalf("Failed to create model: %v", err)
-	}
-
+	// refresh() should return nil cmd (sync VCS refresh)
 	_, cmd := model.refresh()
-	if cmd == nil {
-		t.Error("Expected refresh to return a tea.Cmd for async VCS, got nil")
+	if cmd != nil {
+		t.Error("Expected refresh to return nil cmd (sync VCS refresh)")
 	}
 }
 
-func TestFileChangeMsg_WatcherDisabled_NoVCSRefresh(t *testing.T) {
+func TestFileChangeMsg_WatcherDisabled_NoRefresh(t *testing.T) {
 	tmpDir := t.TempDir()
 	model, err := NewModel(tmpDir)
 	if err != nil {
@@ -467,24 +454,17 @@ func TestFileChangeMsg_WatcherDisabled_NoVCSRefresh(t *testing.T) {
 
 	// Disable watcher
 	model.watcherEnabled = false
-	model.lastVCSRefresh = time.Time{} // Reset to zero time
 
 	// Send FileChangeMsg
-	newModel, cmd := model.Update(FileChangeMsg{})
-	m := newModel.(Model)
+	_, cmd := model.Update(FileChangeMsg{})
 
 	// Should not trigger any commands when watcher is disabled
 	if cmd != nil {
 		t.Error("Expected no cmd when watcher is disabled")
 	}
-
-	// lastVCSRefresh should remain unchanged (zero)
-	if !m.lastVCSRefresh.IsZero() {
-		t.Error("VCS refresh should not have been triggered when watcher is disabled")
-	}
 }
 
-func TestFileChangeMsg_WatcherEnabled_TriggersVCSRefresh(t *testing.T) {
+func TestFileChangeMsg_WatcherEnabled_SyncRefresh(t *testing.T) {
 	tmpDir := t.TempDir()
 	model, err := NewModel(tmpDir)
 	if err != nil {
@@ -494,81 +474,13 @@ func TestFileChangeMsg_WatcherEnabled_TriggersVCSRefresh(t *testing.T) {
 	// Enable watcher but set watcher to nil (we just test the logic)
 	model.watcherEnabled = true
 	model.watcher = nil
-	model.lastVCSRefresh = time.Time{} // Reset to zero time
 
 	// Send FileChangeMsg
-	newModel, cmd := model.Update(FileChangeMsg{})
-	m := newModel.(Model)
+	_, cmd := model.Update(FileChangeMsg{})
 
-	// Should trigger VCS refresh cmd
-	if cmd == nil {
-		t.Error("Expected cmd for VCS refresh when watcher is enabled")
-	}
-
-	// lastVCSRefresh should be updated
-	if m.lastVCSRefresh.IsZero() {
-		t.Error("lastVCSRefresh should have been updated")
-	}
-}
-
-func TestFileChangeMsg_VCSRefreshThrottle(t *testing.T) {
-	tmpDir := t.TempDir()
-	model, err := NewModel(tmpDir)
-	if err != nil {
-		t.Fatalf("Failed to create model: %v", err)
-	}
-
-	// Enable watcher
-	model.watcherEnabled = true
-	model.watcher = nil
-
-	// Set lastVCSRefresh to recent time (within 5 seconds)
-	model.lastVCSRefresh = time.Now()
-
-	// Send FileChangeMsg
-	newModel, cmd := model.Update(FileChangeMsg{})
-	m := newModel.(Model)
-
-	// cmd should be nil or just a batch with no VCS refresh
-	// The tree refresh still happens, but VCS refresh should be throttled
-	// Since watcher is nil, cmd should be nil (no watcher.Watch() and no VCS refresh)
+	// Should not return cmd when watcher is nil (VCS refresh is sync)
 	if cmd != nil {
-		t.Log("Cmd returned (expected nil or batch without VCS refresh)")
-	}
-
-	// Verify that lastVCSRefresh was NOT updated (throttled)
-	if m.lastVCSRefresh.After(model.lastVCSRefresh) {
-		t.Error("VCS refresh should have been throttled (lastVCSRefresh should not be updated)")
-	}
-}
-
-func TestFileChangeMsg_VCSRefreshAfterThrottleExpires(t *testing.T) {
-	tmpDir := t.TempDir()
-	model, err := NewModel(tmpDir)
-	if err != nil {
-		t.Fatalf("Failed to create model: %v", err)
-	}
-
-	// Enable watcher
-	model.watcherEnabled = true
-	model.watcher = nil
-
-	// Set lastVCSRefresh to 6 seconds ago (beyond 5 second throttle)
-	model.lastVCSRefresh = time.Now().Add(-6 * time.Second)
-	oldRefreshTime := model.lastVCSRefresh
-
-	// Send FileChangeMsg
-	newModel, cmd := model.Update(FileChangeMsg{})
-	m := newModel.(Model)
-
-	// Should trigger VCS refresh
-	if cmd == nil {
-		t.Error("Expected VCS refresh cmd after throttle expires")
-	}
-
-	// lastVCSRefresh should be updated
-	if !m.lastVCSRefresh.After(oldRefreshTime) {
-		t.Error("lastVCSRefresh should have been updated after throttle expired")
+		t.Error("Expected no cmd when watcher is nil (sync VCS refresh)")
 	}
 }
 

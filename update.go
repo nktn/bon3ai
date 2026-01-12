@@ -12,18 +12,6 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// vcsRefreshDoneMsg is sent when async VCS refresh completes
-type vcsRefreshDoneMsg struct{}
-
-// refreshVCSAsync runs VCS refresh in background goroutine
-func (m Model) refreshVCSAsync() tea.Cmd {
-	rootPath := m.tree.Root.Path
-	vcsRepo := m.vcsRepo
-	return func() tea.Msg {
-		vcsRepo.Refresh(rootPath)
-		return vcsRefreshDoneMsg{}
-	}
-}
 
 // Update implements tea.Model
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -67,37 +55,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.watcherEnabled {
 			m.tree.Refresh()
 
-			// Add ghost nodes for deleted files (using existing VCS data)
+			// Refresh VCS status synchronously
+			m.vcsRepo.Refresh(m.tree.Root.Path)
+
+			// Add ghost nodes for deleted files
 			m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
 
 			m.adjustSelection()
 
-			var cmds []tea.Cmd
-
 			// Continue watching
 			if m.watcher != nil {
-				cmds = append(cmds, m.watcher.Watch())
+				return m, m.watcher.Watch()
 			}
-
-			// Throttle VCS refresh to every 5 seconds (git/jj status is expensive)
-			// Run asynchronously to avoid blocking UI
-			now := time.Now()
-			if now.Sub(m.lastVCSRefresh) >= 5*time.Second {
-				m.lastVCSRefresh = now
-				cmds = append(cmds, m.refreshVCSAsync())
-			}
-
-			return m, tea.Batch(cmds...)
 		}
 
 	case watcherToggledMsg:
 		// Toggle complete, allow next toggle
 		m.watcherToggling = false
-
-	case vcsRefreshDoneMsg:
-		// VCS refresh completed in background
-		// Add ghost nodes for deleted files
-		m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
 	}
 
 	return m, nil
@@ -803,9 +777,11 @@ func (m Model) refresh() (tea.Model, tea.Cmd) {
 	} else {
 		m.message = "Refreshed"
 	}
+	// VCS refresh runs synchronously
+	m.vcsRepo.Refresh(m.tree.Root.Path)
+	m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
 	m.adjustSelection()
-	// VCS refresh runs asynchronously
-	return m, m.refreshVCSAsync()
+	return m, nil
 }
 
 // watcherToggledMsg is sent when watcher toggle is complete

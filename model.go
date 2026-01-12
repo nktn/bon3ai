@@ -130,10 +130,9 @@ type Model struct {
 	deleteHasDirectories bool
 
 	// File watcher
-	watcher          *Watcher
-	watcherEnabled   bool
-	watcherToggling  bool
-	lastVCSRefresh   time.Time
+	watcher         *Watcher
+	watcherEnabled  bool
+	watcherToggling bool
 }
 
 // NewModel creates a new Model
