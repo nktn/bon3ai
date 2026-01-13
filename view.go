@@ -72,6 +72,8 @@ func (m Model) renderPreview() string {
 	title := fmt.Sprintf(" %s ", m.previewPath)
 	if m.previewIsBinary {
 		title += "(binary) "
+	} else if m.previewIsImage {
+		title += "(image) "
 	}
 	b.WriteString(previewTitleStyle.Render(title))
 	b.WriteString("\n")
@@ -82,19 +84,28 @@ func (m Model) renderPreview() string {
 		visibleHeight = 10
 	}
 
-	for i := m.previewScroll; i < len(m.previewContent) && i < m.previewScroll+visibleHeight; i++ {
-		lineNum := fmt.Sprintf("%4d ", i+1)
-		line := m.previewContent[i]
-
-		// Truncate long lines
-		maxWidth := m.width - 6
-		if len(line) > maxWidth {
-			line = line[:maxWidth-1] + "…"
+	if m.previewIsImage {
+		// Image preview - no line numbers, output as-is
+		for i := m.previewScroll; i < len(m.previewContent) && i < m.previewScroll+visibleHeight; i++ {
+			b.WriteString(m.previewContent[i])
+			b.WriteString("\n")
 		}
+	} else {
+		// Text/binary preview - with line numbers
+		for i := m.previewScroll; i < len(m.previewContent) && i < m.previewScroll+visibleHeight; i++ {
+			lineNum := fmt.Sprintf("%4d ", i+1)
+			line := m.previewContent[i]
 
-		b.WriteString(lineNumStyle.Render(lineNum))
-		b.WriteString(line)
-		b.WriteString("\n")
+			// Truncate long lines
+			maxWidth := m.width - 6
+			if len(line) > maxWidth {
+				line = line[:maxWidth-1] + "…"
+			}
+
+			b.WriteString(lineNumStyle.Render(lineNum))
+			b.WriteString(line)
+			b.WriteString("\n")
+		}
 	}
 
 	// Pad remaining lines

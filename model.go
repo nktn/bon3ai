@@ -115,6 +115,7 @@ type Model struct {
 	previewScroll   int
 	previewPath     string
 	previewIsBinary bool
+	previewIsImage  bool
 
 	// Mouse support
 	lastClickTime  time.Time

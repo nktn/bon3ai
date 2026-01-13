@@ -1,4 +1,4 @@
-# bon3ai - File Tree Explorer
+# bon3ai - TUI File Tree Explorer
 
 A TUI file explorer built in Go with Vim keybinds and Git/Jujutsu status display.
 
@@ -13,7 +13,7 @@ A TUI file explorer built in Go with Vim keybinds and Git/Jujutsu status display
 - **File operations** - Copy, cut, paste, delete, rename
 - **Multi-select** - Mark multiple files with `Space`
 - **Quick search** - Incremental search with `/`
-- **File preview** - Quick view file contents
+- **File preview** - Text, binary (hex), and image preview (PNG, JPG, GIF, etc.)
 - **Hidden files toggle** - Show/hide dotfiles with `.`
 - **Path copying** - Copy file path to system clipboard
 - **File icons** - Icons with Nerd Fonts
@@ -90,6 +90,11 @@ bon3 ~/Documents  # Specific directory
 | `g` / `G` | Jump to top / bottom |
 | `q` / `Esc` / `o` | Close preview |
 
+**Preview types:**
+- **Text**: Line-numbered display
+- **Binary**: Hex dump view (16 bytes per line)
+- **Image**: High-quality display via Kitty graphics protocol (requires `chafa`)
+
 ### Other
 
 | Key | Action |
@@ -136,6 +141,7 @@ Priority: If both `.jj` and `.git` exist, Jujutsu is used (common for jj users w
 - Terminal with UTF-8 support
 - [Nerd Font](https://www.nerdfonts.com/) (recommended for icons)
 - Git or Jujutsu (optional, for VCS features)
+- [chafa](https://hpjansson.org/chafa/) (optional, for image preview)
 
 ## License
 

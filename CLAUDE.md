@@ -43,7 +43,24 @@ The `InputMode` enum controls application behavior:
 - `ModeNormal`: Default navigation/file operations
 - `ModeSearch`, `ModeRename`, `ModeNewFile`, `ModeNewDir`: Text input modes
 - `ModeConfirmDelete`: Deletion confirmation dialog
-- `ModePreview`: File preview with hex view for binary files
+- `ModePreview`: File preview (text/binary/image)
+
+### Preview System
+
+`ModePreview` handles three types of file preview:
+
+| Type | Detection | Display | Close Action |
+|------|-----------|---------|--------------|
+| Text | Not binary, not image | Line-numbered text | None |
+| Binary | Null bytes or >30% non-printable | Hex dump (16 bytes/line) | None |
+| Image | File extension match | chafa (Kitty protocol) | Send Kitty graphics delete sequence |
+
+**Supported image formats**: PNG, JPG, JPEG, GIF, BMP, WebP, TIFF, TIF, ICO
+
+**Image preview implementation** (`update.go`):
+- `isImageFile()`: Extension-based detection
+- `loadImagePreview()`: Executes chafa with `--format kitty --polite on`
+- `clearKittyImages()`: Sends `\x1b_Ga=d,d=A\x1b\\` to delete all Kitty graphics
 
 ### File System
 
@@ -92,7 +109,14 @@ InputMode に関する変更を行った場合は、必ず以下を確認・更�
 
 ## Key Dependencies
 
+### Go Modules
 - `github.com/charmbracelet/bubbletea`: TUI framework
 - `github.com/charmbracelet/lipgloss`: Styling
 - `github.com/charmbracelet/x/ansi`: ANSI string manipulation for overlay compositing
 - `github.com/fsnotify/fsnotify`: File system notifications for real-time watching
+
+### External Tools (Optional)
+- `chafa`: Image preview in terminal (install: `brew install chafa`)
+  - Required for image preview feature
+  - Uses Kitty graphics protocol for high-quality display
+  - Falls back gracefully with error message if not installed

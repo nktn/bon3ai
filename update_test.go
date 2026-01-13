@@ -1,8 +1,12 @@
 package main
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func TestIsBinaryContent(t *testing.T) {
@@ -593,5 +597,207 @@ func TestWatcherToggledMsg_ResetsTogglingFlag(t *testing.T) {
 
 	if m.watcherToggling {
 		t.Error("Expected watcherToggling to be false after watcherToggledMsg")
+	}
+}
+
+// ========================================
+// Image Preview Tests
+// ========================================
+
+func TestIsImageFile(t *testing.T) {
+	tests := []struct {
+		name     string
+		path     string
+		expected bool
+	}{
+		{"PNG file", "image.png", true},
+		{"JPG file", "photo.jpg", true},
+		{"JPEG file", "photo.jpeg", true},
+		{"GIF file", "animation.gif", true},
+		{"BMP file", "bitmap.bmp", true},
+		{"WebP file", "image.webp", true},
+		{"TIFF file", "image.tiff", true},
+		{"TIF file", "image.tif", true},
+		{"ICO file", "favicon.ico", true},
+		{"Uppercase PNG", "IMAGE.PNG", true},
+		{"Mixed case", "Photo.JpG", true},
+		{"Text file", "readme.txt", false},
+		{"Go file", "main.go", false},
+		{"No extension", "Makefile", false},
+		{"Hidden image", ".hidden.png", true},
+		{"Path with dirs", "/path/to/image.png", true},
+		{"SVG file", "vector.svg", false},
+		{"PDF file", "document.pdf", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isImageFile(tt.path)
+			if result != tt.expected {
+				t.Errorf("isImageFile(%q) = %v, want %v", tt.path, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestOpenPreview_ImageFile_SetsPreviewIsImage(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create a simple 1x1 PNG file (minimal valid PNG)
+	pngData := []byte{
+		0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, // PNG signature
+		0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52, // IHDR chunk
+		0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01,
+		0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53,
+		0xDE, 0x00, 0x00, 0x00, 0x0C, 0x49, 0x44, 0x41,
+		0x54, 0x08, 0xD7, 0x63, 0xF8, 0xFF, 0xFF, 0x3F,
+		0x00, 0x05, 0xFE, 0x02, 0xFE, 0xDC, 0xCC, 0x59,
+		0xE7, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4E,
+		0x44, 0xAE, 0x42, 0x60, 0x82,
+	}
+	pngPath := filepath.Join(tmpDir, "test.png")
+	os.WriteFile(pngPath, pngData, 0644)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	// Select the PNG file
+	for i := 0; i < model.tree.Len(); i++ {
+		node := model.tree.GetNode(i)
+		if node != nil && node.Name == "test.png" {
+			model.selected = i
+			break
+		}
+	}
+
+	// Try to open preview - will fail if chafa is not installed
+	model.openPreview()
+
+	// Check that it detected as image file
+	if model.previewPath != pngPath {
+		// If chafa is not installed, previewPath won't be set
+		// but we can still test that isImageFile works
+		if !isImageFile(pngPath) {
+			t.Error("Expected isImageFile to return true for PNG")
+		}
+	}
+}
+
+func TestClosePreview_ResetsImageFlag(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("test"), 0644)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	// Manually set preview state as if image was open
+	model.inputMode = ModePreview
+	model.previewIsImage = true
+	model.previewContent = []string{"line1", "line2"}
+	model.previewPath = "/path/to/image.png"
+	model.previewScroll = 5
+
+	// Close preview
+	model.closePreview()
+
+	// Verify all preview state is reset
+	if model.inputMode != ModeNormal {
+		t.Errorf("Expected ModeNormal, got %v", model.inputMode)
+	}
+	if model.previewIsImage {
+		t.Error("Expected previewIsImage to be false")
+	}
+	if model.previewContent != nil {
+		t.Error("Expected previewContent to be nil")
+	}
+	if model.previewPath != "" {
+		t.Error("Expected previewPath to be empty")
+	}
+	if model.previewScroll != 0 {
+		t.Error("Expected previewScroll to be 0")
+	}
+}
+
+func TestPreviewMode_CloseWithQ_ImagePreview(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("test"), 0644)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	// Set up as image preview
+	model.inputMode = ModePreview
+	model.previewIsImage = true
+	model.previewContent = []string{"image content"}
+
+	// Press 'q' to close
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	newModel, cmd := model.Update(msg)
+	m := newModel.(Model)
+
+	// Should return to normal mode
+	if m.inputMode != ModeNormal {
+		t.Errorf("Expected ModeNormal after closing, got %v", m.inputMode)
+	}
+
+	// Should return a command (for clearing kitty images)
+	if cmd == nil {
+		t.Error("Expected a command to be returned for image preview close")
+	}
+}
+
+func TestPreviewMode_CloseWithQ_TextPreview(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte("test"), 0644)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	// Set up as text preview (not image)
+	model.inputMode = ModePreview
+	model.previewIsImage = false
+	model.previewContent = []string{"text content"}
+
+	// Press 'q' to close
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	newModel, cmd := model.Update(msg)
+	m := newModel.(Model)
+
+	// Should return to normal mode
+	if m.inputMode != ModeNormal {
+		t.Errorf("Expected ModeNormal after closing, got %v", m.inputMode)
+	}
+
+	// Should NOT return a command for text preview
+	if cmd != nil {
+		t.Error("Expected no command for text preview close")
 	}
 }

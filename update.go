@@ -207,7 +207,13 @@ func (m Model) updatePreviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch msg.String() {
 	case "q", "esc", "o":
+		wasImage := m.previewIsImage
 		m.closePreview()
+		if wasImage {
+			// Clear Kitty graphics and refresh screen
+			return m, tea.Sequence(clearKittyImages(), tea.ClearScreen)
+		}
+		return m, nil
 
 	// Scroll
 	case "up", "k":
@@ -660,14 +666,30 @@ func (m *Model) openPreview() {
 		return
 	}
 
+	m.previewPath = node.Path
+	m.previewScroll = 0
+
+	// Check if image file
+	if isImageFile(node.Path) {
+		lines, err := m.loadImagePreview(node.Path)
+		if err != nil {
+			m.message = err.Error()
+			return
+		}
+		m.previewContent = lines
+		m.previewIsBinary = false
+		m.previewIsImage = true
+		m.inputMode = ModePreview
+		return
+	}
+
 	content, err := os.ReadFile(node.Path)
 	if err != nil {
 		m.message = fmt.Sprintf("Error: %v", err)
 		return
 	}
 
-	m.previewPath = node.Path
-	m.previewScroll = 0
+	m.previewIsImage = false
 
 	// Check if binary
 	if isBinaryContent(content) {
@@ -686,6 +708,53 @@ func (m *Model) closePreview() {
 	m.previewContent = nil
 	m.previewPath = ""
 	m.previewScroll = 0
+	m.previewIsImage = false
+}
+
+// clearKittyImages sends escape sequence to delete all Kitty graphics
+func clearKittyImages() tea.Cmd {
+	return tea.Printf("\x1b_Ga=d,d=A\x1b\\")
+}
+
+func isImageFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	imageExts := map[string]bool{
+		".png": true, ".jpg": true, ".jpeg": true,
+		".gif": true, ".bmp": true, ".webp": true,
+		".tiff": true, ".tif": true, ".ico": true,
+	}
+	return imageExts[ext]
+}
+
+func (m *Model) loadImagePreview(path string) ([]string, error) {
+	// Check if chafa is installed
+	if _, err := exec.LookPath("chafa"); err != nil {
+		return nil, fmt.Errorf("chafa not installed (brew install chafa)")
+	}
+
+	// Calculate size based on terminal dimensions
+	width := m.width - 2
+	height := m.height - 4
+	if width < 10 {
+		width = 10
+	}
+	if height < 5 {
+		height = 5
+	}
+
+	cmd := exec.Command("chafa",
+		"--format", "kitty",
+		"--animate", "off",
+		"--polite", "on",
+		"--size", fmt.Sprintf("%dx%d", width, height),
+		path,
+	)
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("chafa error: %v", err)
+	}
+
+	return strings.Split(string(output), "\n"), nil
 }
 
 func isBinaryContent(content []byte) bool {

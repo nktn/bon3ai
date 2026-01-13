@@ -11,7 +11,7 @@ stateDiagram-v2
     ModeNormal --> ModeNewFile: a
     ModeNormal --> ModeNewDir: A
     ModeNormal --> ModeConfirmDelete: D / Delete
-    ModeNormal --> ModePreview: o
+    ModeNormal --> ModePreview: o (text/binary/image)
     ModeNormal --> [*]: q / Ctrl+C
 
     ModeSearch --> ModeNormal: Enter (confirm)
@@ -42,7 +42,7 @@ stateDiagram-v2
 | ModeNewFile | 新規ファイル名入力中 |
 | ModeNewDir | 新規ディレクトリ名入力中 |
 | ModeConfirmDelete | 削除確認ダイアログ |
-| ModePreview | ファイルプレビュー表示中 |
+| ModePreview | ファイルプレビュー表示中（テキスト/バイナリ/画像） |
 
 ## Transitions
 
@@ -59,3 +59,27 @@ stateDiagram-v2
 - 入力モード: `Enter` (確定) or `Esc` (キャンセル)
 - 削除確認: `y/Y/Enter` (実行) or `n/N/Esc` (キャンセル)
 - プレビュー: `q/Esc/o`
+
+## Preview Mode Details
+
+ModePreview はファイルの種類によって3つの表示モードがある:
+
+| 種類 | 判定条件 | 表示方法 | 終了時の処理 |
+|------|---------|---------|-------------|
+| テキスト | バイナリでも画像でもない | 行番号付きテキスト | なし |
+| バイナリ | null文字または非印字文字30%超 | HEXダンプ (16bytes/行) | なし |
+| 画像 | 拡張子が画像形式 | chafa (Kittyプロトコル) | Kitty画像削除シーケンス送信 |
+
+### 対応画像形式
+PNG, JPG, JPEG, GIF, BMP, WebP, TIFF, TIF, ICO
+
+### Preview Mode キーバインド
+| キー | 動作 |
+|------|------|
+| `j` / `↓` | 1行下スクロール |
+| `k` / `↑` | 1行上スクロール |
+| `f` / `Space` / `PageDown` | ページダウン |
+| `b` / `PageUp` | ページアップ |
+| `g` | 先頭へジャンプ |
+| `G` | 末尾へジャンプ |
+| `q` / `Esc` / `o` | プレビュー終了 |
