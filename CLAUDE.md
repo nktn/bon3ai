@@ -26,6 +26,19 @@ go test -v -run TestName      # Run specific test
 make clean
 ```
 
+## Development Guidelines
+
+### テストの作成
+
+新しい機能を実装したら、必ず対応するテストも作成すること:
+
+1. 実装したファイルに対応する `*_test.go` ファイルにテストを追加
+2. `make test` で全テストが通ることを確認
+3. 特に以下のケースはテストを書く:
+   - 新しい関数・メソッド
+   - 既存関数の動作変更
+   - エッジケースやエラーハンドリング
+
 ## Architecture
 
 The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
@@ -53,13 +66,14 @@ The `InputMode` enum controls application behavior:
 |------|-----------|---------|--------------|
 | Text | Not binary, not image | Line-numbered text | None |
 | Binary | Null bytes or >30% non-printable | Hex dump (16 bytes/line) | None |
-| Image | File extension match | chafa (Kitty protocol) | Send Kitty graphics delete sequence |
+| Image | File extension match | chafa (Kitty) or ASCII art fallback | Kitty graphics delete (chafa only) |
 
 **Supported image formats**: PNG, JPG, JPEG, GIF, BMP, WebP, TIFF, TIF, ICO
 
 **Image preview implementation** (`update.go`):
 - `isImageFile()`: Extension-based detection
-- `loadImagePreview()`: Executes chafa with `--format kitty --polite on`
+- `loadImagePreview()`: Tries chafa first, falls back to ASCII art via image2ascii
+- `loadASCIIPreview()`: Converts image to colored ASCII art using image2ascii library
 - `clearKittyImages()`: Sends `\x1b_Ga=d,d=A\x1b\\` to delete all Kitty graphics
 
 ### File System
@@ -114,9 +128,9 @@ InputMode に関する変更を行った場合は、必ず以下を確認・更�
 - `github.com/charmbracelet/lipgloss`: Styling
 - `github.com/charmbracelet/x/ansi`: ANSI string manipulation for overlay compositing
 - `github.com/fsnotify/fsnotify`: File system notifications for real-time watching
+- `github.com/qeesung/image2ascii`: ASCII art image conversion (fallback for image preview)
 
 ### External Tools (Optional)
-- `chafa`: Image preview in terminal (install: `brew install chafa`)
-  - Required for image preview feature
-  - Uses Kitty graphics protocol for high-quality display
-  - Falls back gracefully with error message if not installed
+- `chafa`: High-quality image preview in terminal (install: `brew install chafa`)
+  - Uses Kitty graphics protocol for best display quality
+  - If not installed, falls back to ASCII art preview via image2ascii

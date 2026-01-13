@@ -10,6 +10,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/qeesung/image2ascii/convert"
 )
 
 
@@ -678,7 +679,7 @@ func (m *Model) openPreview() {
 		}
 		m.previewContent = lines
 		m.previewIsBinary = false
-		m.previewIsImage = true
+		// previewIsImage is set in loadImagePreview (true for chafa/Kitty, false for ASCII)
 		m.inputMode = ModePreview
 		return
 	}
@@ -727,11 +728,6 @@ func isImageFile(path string) bool {
 }
 
 func (m *Model) loadImagePreview(path string) ([]string, error) {
-	// Check if chafa is installed
-	if _, err := exec.LookPath("chafa"); err != nil {
-		return nil, fmt.Errorf("chafa not installed (brew install chafa)")
-	}
-
 	// Calculate size based on terminal dimensions
 	width := m.width - 2
 	height := m.height - 4
@@ -742,19 +738,40 @@ func (m *Model) loadImagePreview(path string) ([]string, error) {
 		height = 5
 	}
 
-	cmd := exec.Command("chafa",
-		"--format", "kitty",
-		"--animate", "off",
-		"--polite", "on",
-		"--size", fmt.Sprintf("%dx%d", width, height),
-		path,
-	)
-	output, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("chafa error: %v", err)
+	// Try chafa first (high quality with Kitty protocol)
+	if _, err := exec.LookPath("chafa"); err == nil {
+		cmd := exec.Command("chafa",
+			"--format", "kitty",
+			"--animate", "off",
+			"--polite", "on",
+			"--size", fmt.Sprintf("%dx%d", width, height),
+			path,
+		)
+		output, err := cmd.Output()
+		if err == nil {
+			m.previewIsImage = true
+			return strings.Split(string(output), "\n"), nil
+		}
 	}
 
-	return strings.Split(string(output), "\n"), nil
+	// Fallback to ASCII art using image2ascii
+	return m.loadASCIIPreview(path, width, height)
+}
+
+func (m *Model) loadASCIIPreview(path string, width, height int) ([]string, error) {
+	converter := convert.NewImageConverter()
+	opts := convert.DefaultOptions
+	opts.FixedWidth = width
+	opts.FixedHeight = height
+	opts.Colored = true
+
+	result := converter.ImageFile2ASCIIString(path, &opts)
+	if result == "" {
+		return nil, fmt.Errorf("failed to convert image to ASCII")
+	}
+
+	m.previewIsImage = false // ASCII art doesn't need Kitty cleanup
+	return strings.Split(result, "\n"), nil
 }
 
 func isBinaryContent(content []byte) bool {
