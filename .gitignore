@@ -36,3 +36,6 @@ go.work.sum
 
 # Claude Code
 .claude/settings.local.json
+
+# Documentation (generated)
+docs/design.md
