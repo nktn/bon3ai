@@ -89,10 +89,10 @@ func TestGetFileIcon_CaseInsensitive(t *testing.T) {
 	}
 }
 
-func TestContains(t *testing.T) {
+func TestClipboardContains(t *testing.T) {
 	tests := []struct {
 		name     string
-		slice    []string
+		paths    []string
 		item     string
 		expected bool
 	}{
@@ -106,9 +106,11 @@ func TestContains(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := contains(tt.slice, tt.item)
+			clipboard := Clipboard{}
+			clipboard.Copy(tt.paths)
+			result := clipboard.Contains(tt.item)
 			if result != tt.expected {
-				t.Errorf("contains(%v, %q) = %v, expected %v", tt.slice, tt.item, result, tt.expected)
+				t.Errorf("Clipboard.Contains(%q) = %v, expected %v", tt.item, result, tt.expected)
 			}
 		})
 	}

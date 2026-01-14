@@ -6,6 +6,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 bon3ai is a file explorer TUI (Terminal User Interface) built in Go using the Bubble Tea framework. It features Vim-style keybindings, Git/Jujutsu VCS integration, and file operations.
 
+## Plan Mode
+
+- Make the plan extremely concise. Sacrifice grammar for the sake of concision.
+- At the end of each plan, give me a list of unresolved questions to answer, if any.
+
 ## Development Commands
 
 ```bash
@@ -28,16 +33,16 @@ make clean
 
 ## Development Guidelines
 
-### テストの作成
+### Writing Tests
 
-新しい機能を実装したら、必ず対応するテストも作成すること:
+Always create corresponding tests when implementing new features:
 
-1. 実装したファイルに対応する `*_test.go` ファイルにテストを追加
-2. `make test` で全テストが通ることを確認
-3. 特に以下のケースはテストを書く:
-   - 新しい関数・メソッド
-   - 既存関数の動作変更
-   - エッジケースやエラーハンドリング
+1. Add tests to the `*_test.go` file that corresponds to your implementation
+2. Run `make test` to verify all tests pass
+3. Write tests especially for the following cases:
+   - New functions and methods
+   - Changes to existing function behavior
+   - Edge cases and error handling
 
 ## Architecture
 

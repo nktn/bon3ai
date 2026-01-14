@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -213,7 +214,7 @@ func (m *Model) tryHandleAsDrop() bool {
 	}
 
 	if success > 0 {
-		m.message = "Dropped " + string(rune('0'+success)) + " item(s)"
+		m.message = fmt.Sprintf("Dropped %d item(s)", success)
 		m.tree.Refresh()
 		m.vcsRepo.Refresh(m.tree.Root.Path)
 		return true
@@ -242,7 +243,7 @@ func (m *Model) handleDrop(text string) {
 	}
 
 	if success > 0 {
-		m.message = "Dropped " + string(rune('0'+success)) + " item(s)"
+		m.message = fmt.Sprintf("Dropped %d item(s)", success)
 		m.tree.Refresh()
 		m.vcsRepo.Refresh(m.tree.Root.Path)
 	}

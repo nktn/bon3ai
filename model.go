@@ -20,6 +20,28 @@ const (
 	ModePreview
 )
 
+// String returns a string representation of the InputMode
+func (m InputMode) String() string {
+	switch m {
+	case ModeNormal:
+		return "normal"
+	case ModeSearch:
+		return "search"
+	case ModeRename:
+		return "rename"
+	case ModeNewFile:
+		return "newfile"
+	case ModeNewDir:
+		return "newdir"
+	case ModeConfirmDelete:
+		return "confirm_delete"
+	case ModePreview:
+		return "preview"
+	default:
+		return "unknown"
+	}
+}
+
 // tickMsg is sent periodically to check the drop buffer
 type tickMsg time.Time
 

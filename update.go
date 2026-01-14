@@ -205,6 +205,7 @@ func (m Model) updateConfirmMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) updatePreviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	visibleHeight := m.height - 4
+	contentLen := len(m.previewContent) // Safe: len(nil) returns 0
 
 	switch msg.String() {
 	case "q", "esc", "o":
@@ -222,7 +223,7 @@ func (m Model) updatePreviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.previewScroll--
 		}
 	case "down", "j":
-		maxScroll := len(m.previewContent) - visibleHeight
+		maxScroll := contentLen - visibleHeight
 		if maxScroll < 0 {
 			maxScroll = 0
 		}
@@ -237,7 +238,7 @@ func (m Model) updatePreviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.previewScroll = 0
 		}
 	case "pgdown", "f", " ":
-		maxScroll := len(m.previewContent) - visibleHeight
+		maxScroll := contentLen - visibleHeight
 		if maxScroll < 0 {
 			maxScroll = 0
 		}
@@ -250,7 +251,7 @@ func (m Model) updatePreviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "g":
 		m.previewScroll = 0
 	case "G":
-		maxScroll := len(m.previewContent) - visibleHeight
+		maxScroll := contentLen - visibleHeight
 		if maxScroll < 0 {
 			maxScroll = 0
 		}

@@ -163,7 +163,7 @@ func (m Model) renderNode(node *FileNode, isSelected bool) string {
 
 	// Style - determine based on selection, cut, ghost, or git status
 	var style lipgloss.Style
-	isCut := m.clipboard.Type == ClipboardCut && contains(m.clipboard.Paths, node.Path)
+	isCut := m.clipboard.Type == ClipboardCut && m.clipboard.Contains(node.Path)
 
 	if node.IsGhost {
 		// Ghost files always use deleted style (red)
@@ -471,68 +471,74 @@ func (m Model) renderConfirmPopup() string {
 	return popup
 }
 
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
+// File icon mappings
+var (
+	// Special filename icons
+	specialFileIcons = map[string]string{
+		".gitignore":    "",
+		".gitattributes": "",
+		".gitmodules":   "",
 	}
-	return false
-}
+
+	// Extension to icon mapping
+	extIcons = map[string]string{
+		"go":   "",
+		"rs":   "",
+		"py":   "",
+		"js":   "",
+		"jsx":  "",
+		"ts":   "",
+		"tsx":  "",
+		"html": "",
+		"css":  "",
+		"scss": "",
+		"sass": "",
+		"json": "",
+		"toml": "",
+		"yaml": "",
+		"yml":  "",
+		"md":   "",
+		"txt":  "",
+		"lock": "",
+		"png":  "",
+		"jpg":  "",
+		"jpeg": "",
+		"gif":  "",
+		"svg":  "",
+		"ico":  "",
+		"mp3":  "",
+		"wav":  "",
+		"flac": "",
+		"mp4":  "",
+		"mkv":  "",
+		"avi":  "",
+		"zip":  "",
+		"tar":  "",
+		"gz":   "",
+		"rar":  "",
+		"pdf":  "",
+		"doc":  "",
+		"docx": "",
+		"sh":   "",
+		"bash": "",
+		"zsh":  "",
+	}
+)
 
 func getFileIcon(name string) string {
 	// Check for special filenames first
 	lowerName := strings.ToLower(name)
-	switch lowerName {
-	case ".gitignore", ".gitattributes", ".gitmodules":
-		return ""
+	if icon, ok := specialFileIcons[lowerName]; ok {
+		return icon
 	}
 
-	ext := ""
+	// Check extension
 	if idx := strings.LastIndex(name, "."); idx != -1 {
-		ext = strings.ToLower(name[idx+1:])
+		ext := strings.ToLower(name[idx+1:])
+		if icon, ok := extIcons[ext]; ok {
+			return icon
+		}
 	}
 
-	switch ext {
-	case "go":
-		return ""
-	case "rs":
-		return ""
-	case "py":
-		return ""
-	case "js", "jsx":
-		return ""
-	case "ts", "tsx":
-		return ""
-	case "html":
-		return ""
-	case "css", "scss", "sass":
-		return ""
-	case "json":
-		return ""
-	case "toml", "yaml", "yml":
-		return ""
-	case "md":
-		return ""
-	case "txt":
-		return ""
-	case "lock":
-		return ""
-	case "png", "jpg", "jpeg", "gif", "svg", "ico":
-		return ""
-	case "mp3", "wav", "flac":
-		return ""
-	case "mp4", "mkv", "avi":
-		return ""
-	case "zip", "tar", "gz", "rar":
-		return ""
-	case "pdf":
-		return ""
-	case "doc", "docx":
-		return ""
-	case "sh", "bash", "zsh":
-		return ""
-	default:
-		return ""
-	}
+	return ""
 }

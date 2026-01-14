@@ -52,28 +52,7 @@ func (j *JJRepo) GetStatus(path string) VCSStatus {
 	}
 
 	// For directories, check if any child has a status
-	hasModified := false
-	hasUntracked := false
-
-	for filePath, status := range j.Statuses {
-		if strings.HasPrefix(filePath, normalizedPath+string(filepath.Separator)) {
-			switch status {
-			case VCSStatusModified, VCSStatusAdded, VCSStatusDeleted, VCSStatusRenamed, VCSStatusConflict:
-				hasModified = true
-			case VCSStatusUntracked:
-				hasUntracked = true
-			}
-		}
-	}
-
-	if hasModified {
-		return VCSStatusModified
-	}
-	if hasUntracked {
-		return VCSStatusUntracked
-	}
-
-	return VCSStatusNone
+	return propagateStatusToParent(j.Statuses, normalizedPath)
 }
 
 // IsInsideRepo returns true if we're inside a jj repository

@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // VCSStatus represents the status of a file in a version control system
@@ -93,4 +94,31 @@ func hasJJRepo(path string) bool {
 func hasJJCommand() bool {
 	_, err := exec.LookPath("jj")
 	return err == nil
+}
+
+// propagateStatusToParent calculates the status for a directory based on its children
+// This is a common helper used by both Git and JJ implementations
+func propagateStatusToParent(statuses map[string]VCSStatus, dirPath string) VCSStatus {
+	hasModified := false
+	hasUntracked := false
+
+	for filePath, status := range statuses {
+		if strings.HasPrefix(filePath, dirPath+string(filepath.Separator)) {
+			switch status {
+			case VCSStatusModified, VCSStatusAdded, VCSStatusDeleted, VCSStatusRenamed, VCSStatusConflict:
+				hasModified = true
+			case VCSStatusUntracked:
+				hasUntracked = true
+			}
+		}
+	}
+
+	if hasModified {
+		return VCSStatusModified
+	}
+	if hasUntracked {
+		return VCSStatusUntracked
+	}
+
+	return VCSStatusNone
 }

@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+	"time"
 )
 
 // ClipboardType represents the type of clipboard operation
@@ -18,31 +20,51 @@ const (
 
 // Clipboard holds copied/cut file paths
 type Clipboard struct {
-	Type  ClipboardType
-	Paths []string
+	Type     ClipboardType
+	Paths    []string
+	pathsSet map[string]bool // For O(1) lookup
 }
 
 // Copy sets the clipboard to copy mode
 func (c *Clipboard) Copy(paths []string) {
 	c.Type = ClipboardCopy
 	c.Paths = paths
+	c.rebuildSet()
 }
 
 // Cut sets the clipboard to cut mode
 func (c *Clipboard) Cut(paths []string) {
 	c.Type = ClipboardCut
 	c.Paths = paths
+	c.rebuildSet()
 }
 
 // Clear clears the clipboard
 func (c *Clipboard) Clear() {
 	c.Type = ClipboardNone
 	c.Paths = nil
+	c.pathsSet = nil
 }
 
 // IsEmpty returns true if clipboard is empty
 func (c *Clipboard) IsEmpty() bool {
 	return c.Type == ClipboardNone || len(c.Paths) == 0
+}
+
+// Contains returns true if the path is in the clipboard (O(1) lookup)
+func (c *Clipboard) Contains(path string) bool {
+	if c.pathsSet == nil {
+		return false
+	}
+	return c.pathsSet[path]
+}
+
+// rebuildSet rebuilds the pathsSet for O(1) lookup
+func (c *Clipboard) rebuildSet() {
+	c.pathsSet = make(map[string]bool, len(c.Paths))
+	for _, p := range c.Paths {
+		c.pathsSet[p] = true
+	}
 }
 
 // CopyFile copies a file or directory to the destination directory
@@ -120,8 +142,23 @@ func DeleteFile(path string) error {
 
 // RenameFile renames a file or directory
 func RenameFile(path, newName string) (string, error) {
+	// Prevent path traversal attacks
+	if strings.Contains(newName, "/") || strings.Contains(newName, "\\") {
+		return "", fmt.Errorf("invalid name: contains path separator")
+	}
+	if newName == ".." || newName == "." {
+		return "", fmt.Errorf("invalid name: %s", newName)
+	}
+
 	parent := filepath.Dir(path)
 	newPath := filepath.Join(parent, newName)
+
+	// Verify the new path is still under the parent directory
+	cleanNew := filepath.Clean(newPath)
+	cleanParent := filepath.Clean(parent)
+	if !strings.HasPrefix(cleanNew, cleanParent+string(filepath.Separator)) && cleanNew != cleanParent {
+		return "", fmt.Errorf("invalid name: path traversal detected")
+	}
 
 	if newPath == path {
 		return path, nil
@@ -140,6 +177,14 @@ func RenameFile(path, newName string) (string, error) {
 
 // CreateFile creates a new empty file
 func CreateFile(parentDir, name string) (string, error) {
+	// Prevent path traversal attacks
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return "", fmt.Errorf("invalid name: contains path separator")
+	}
+	if name == ".." || name == "." {
+		return "", fmt.Errorf("invalid name: %s", name)
+	}
+
 	path := filepath.Join(parentDir, name)
 
 	if _, err := os.Stat(path); err == nil {
@@ -157,6 +202,14 @@ func CreateFile(parentDir, name string) (string, error) {
 
 // CreateDirectory creates a new directory
 func CreateDirectory(parentDir, name string) (string, error) {
+	// Prevent path traversal attacks
+	if strings.Contains(name, "/") || strings.Contains(name, "\\") {
+		return "", fmt.Errorf("invalid name: contains path separator")
+	}
+	if name == ".." || name == "." {
+		return "", fmt.Errorf("invalid name: %s", name)
+	}
+
 	path := filepath.Join(parentDir, name)
 
 	if _, err := os.Stat(path); err == nil {
@@ -228,6 +281,7 @@ func copyDirRecursive(src, dest string) error {
 }
 
 // getUniquePath returns a unique path by appending _N suffix if needed
+// Returns empty string if max attempts (1000) exceeded
 func getUniquePath(path string) string {
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		return path
@@ -236,12 +290,14 @@ func getUniquePath(path string) string {
 	ext := filepath.Ext(path)
 	base := path[:len(path)-len(ext)]
 
-	counter := 1
-	for {
+	const maxAttempts = 1000
+	for counter := 1; counter <= maxAttempts; counter++ {
 		newPath := fmt.Sprintf("%s_%d%s", base, counter, ext)
 		if _, err := os.Stat(newPath); os.IsNotExist(err) {
 			return newPath
 		}
-		counter++
 	}
+
+	// Fallback: use timestamp
+	return fmt.Sprintf("%s_%d%s", base, time.Now().UnixNano(), ext)
 }

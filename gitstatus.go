@@ -86,28 +86,7 @@ func (g *GitRepo) GetStatus(path string) GitStatus {
 	}
 
 	// For directories, check if any child has a status
-	hasModified := false
-	hasUntracked := false
-
-	for filePath, status := range g.Statuses {
-		if strings.HasPrefix(filePath, normalizedPath+string(filepath.Separator)) {
-			switch status {
-			case GitStatusModified, GitStatusAdded, GitStatusDeleted, GitStatusRenamed, GitStatusConflict:
-				hasModified = true
-			case GitStatusUntracked:
-				hasUntracked = true
-			}
-		}
-	}
-
-	if hasModified {
-		return GitStatusModified
-	}
-	if hasUntracked {
-		return GitStatusUntracked
-	}
-
-	return GitStatusNone
+	return propagateStatusToParent(g.Statuses, normalizedPath)
 }
 
 // IsInsideRepo returns true if we're inside a git repository
