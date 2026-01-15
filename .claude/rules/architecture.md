@@ -1,6 +1,8 @@
-# State Machine
+# Architecture Details
 
-bon3ai の InputMode 状態遷移図
+## State Machine
+
+InputMode 状態遷移図
 
 ```mermaid
 stateDiagram-v2
@@ -60,9 +62,7 @@ stateDiagram-v2
 - 削除確認: `y/Y/Enter` (実行) or `n/N/Esc` (キャンセル)
 - プレビュー: `q/Esc/o`
 
-## Preview Mode Details
-
-ModePreview はファイルの種類によって3つの表示モードがある:
+## Preview Mode
 
 | 種類 | 判定条件 | 表示方法 | 終了時の処理 |
 |------|---------|---------|-------------|
@@ -70,15 +70,14 @@ ModePreview はファイルの種類によって3つの表示モードがある:
 | バイナリ | null文字または非印字文字30%超 | HEXダンプ (16bytes/行) | なし |
 | 画像 | 拡張子が画像形式 | chafa優先、なければASCIIアート | chafaの場合のみKitty画像削除シーケンス送信 |
 
-### 画像プレビューの動作
+**対応画像形式**: PNG, JPG, JPEG, GIF, BMP, WebP, TIFF, TIF, ICO
 
-1. **chafaがインストールされている場合**: Kittyプロトコルで高品質表示
-2. **chafaがインストールされていない場合**: image2asciiによるASCIIアートでフォールバック表示
+**実装** (`update.go`):
+- `isImageFile()`: 拡張子判定
+- `loadImagePreview()`: chafa優先、image2asciiフォールバック
+- `clearKittyImages()`: `\x1b_Ga=d,d=A\x1b\\` 送信
 
-### 対応画像形式
-PNG, JPG, JPEG, GIF, BMP, WebP, TIFF, TIF, ICO
-
-### Preview Mode キーバインド
+### Preview キーバインド
 | キー | 動作 |
 |------|------|
 | `j` / `↓` | 1行下スクロール |
@@ -88,3 +87,29 @@ PNG, JPG, JPEG, GIF, BMP, WebP, TIFF, TIF, ICO
 | `g` | 先頭へジャンプ |
 | `G` | 末尾へジャンプ |
 | `q` / `Esc` / `o` | プレビュー終了 |
+
+## VCS Integration
+
+インターフェースパターンで抽象化:
+- **gitstatus.go**: `git status --porcelain`
+- **jjstatus.go**: `jj status` / `jj log`
+
+親ディレクトリへステータス伝播。
+
+## Drag & Drop
+
+- **drop.go**: ターミナルペーストイベントをファイルドロップとして処理
+
+## File Watching
+
+- **watcher.go**: fsnotifyによるリアルタイム監視
+  - 200msデバウンス
+  - Chmodイベント無視（Spotlight等）
+  - 展開ディレクトリのみ監視
+  - `W`キーでトグル（無効時は完全解放）
+
+## Performance
+
+- VCS更新は同期実行（シンプルさ優先）
+- Watcher無効時はリソース完全解放
+- `.git`/`.jj`ディレクトリ監視でコミット検知
