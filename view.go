@@ -69,11 +69,12 @@ func (m Model) renderPreview() string {
 	var b strings.Builder
 
 	// Title
-	title := fmt.Sprintf(" %s ", m.previewPath)
+	filename := filepath.Base(m.previewPath)
+	var title string
 	if m.previewIsBinary {
-		title += "(binary) "
-	} else if m.previewIsImage {
-		title += "(image) "
+		title = fmt.Sprintf(" %s (binary) ", filename)
+	} else {
+		title = fmt.Sprintf(" %s ", filename)
 	}
 	b.WriteString(previewTitleStyle.Render(title))
 	b.WriteString("\n")
@@ -115,14 +116,29 @@ func (m Model) renderPreview() string {
 	}
 
 	// Status bar
-	totalLines := len(m.previewContent)
-	currentLine := m.previewScroll + 1
-	percent := 0
-	if totalLines > 0 {
-		percent = (currentLine * 100) / totalLines
+	var status string
+	if isImageFile(m.previewPath) {
+		// Image preview - show image info
+		if m.imageWidth > 0 && m.imageHeight > 0 {
+			status = fmt.Sprintf(" %d×%d %s, %s | q:close ",
+				m.imageWidth, m.imageHeight,
+				m.imageFormat,
+				formatFileSize(m.imageSize))
+		} else {
+			status = fmt.Sprintf(" %s, %s | q:close ",
+				m.imageFormat,
+				formatFileSize(m.imageSize))
+		}
+	} else {
+		// Text/binary preview - show scroll info
+		totalLines := len(m.previewContent)
+		currentLine := m.previewScroll + 1
+		percent := 0
+		if totalLines > 0 {
+			percent = (currentLine * 100) / totalLines
+		}
+		status = fmt.Sprintf(" Line %d/%d (%d%%) | j/k:scroll f/b:page g/G:top/bottom q:close ", currentLine, totalLines, percent)
 	}
-
-	status := fmt.Sprintf(" Line %d/%d (%d%%) | j/k:scroll f/b:page g/G:top/bottom q:close ", currentLine, totalLines, percent)
 	b.WriteString(previewStatusStyle.Width(m.width).Render(status))
 
 	return b.String()
@@ -541,4 +557,24 @@ func getFileIcon(name string) string {
 	}
 
 	return ""
+}
+
+// formatFileSize converts bytes to human-readable format
+func formatFileSize(bytes int64) string {
+	const (
+		KB = 1024
+		MB = KB * 1024
+		GB = MB * 1024
+	)
+
+	switch {
+	case bytes >= GB:
+		return fmt.Sprintf("%.1fGB", float64(bytes)/float64(GB))
+	case bytes >= MB:
+		return fmt.Sprintf("%.1fMB", float64(bytes)/float64(MB))
+	case bytes >= KB:
+		return fmt.Sprintf("%.1fKB", float64(bytes)/float64(KB))
+	default:
+		return fmt.Sprintf("%dB", bytes)
+	}
 }

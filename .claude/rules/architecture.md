@@ -74,8 +74,26 @@ stateDiagram-v2
 
 **実装** (`update.go`):
 - `isImageFile()`: 拡張子判定
+- `getImageInfo()`: 画像メタデータ取得（幅、高さ、フォーマット、サイズ）
 - `loadImagePreview()`: chafa優先、image2asciiフォールバック
 - `clearKittyImages()`: `\x1b_Ga=d,d=A\x1b\\` 送信
+
+### 画像情報表示
+
+タイトルバーに画像メタデータを表示:
+```
+ image.png (1920×1080 PNG, 2.4MB)
+```
+
+**表示項目**:
+- ファイル名
+- 幅 × 高さ (px)
+- フォーマット (PNG/JPEG/GIF等)
+- ファイルサイズ
+
+**実装** (`view.go`):
+- `renderPreview()`: タイトル生成時に `m.imageWidth`, `m.imageHeight`, `m.imageFormat`, `m.imageSize` を使用
+- `formatFileSize()`: バイト数を人間可読形式に変換 (KB/MB/GB)
 
 ### Preview キーバインド
 | キー | 動作 |
