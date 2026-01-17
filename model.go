@@ -18,6 +18,7 @@ const (
 	ModeNewDir
 	ModeConfirmDelete
 	ModePreview
+	ModeGoTo
 )
 
 // String returns a string representation of the InputMode
@@ -37,6 +38,8 @@ func (m InputMode) String() string {
 		return "confirm_delete"
 	case ModePreview:
 		return "preview"
+	case ModeGoTo:
+		return "goto"
 	default:
 		return "unknown"
 	}
@@ -162,6 +165,13 @@ type Model struct {
 	watcher         *Watcher
 	watcherEnabled  bool
 	watcherToggling bool
+
+	// Directory navigation
+	prevRoot string // Previous root path for `-` command
+	gPending bool   // Waiting for second key after `g`
+
+	// Quit with cd
+	printCwdOnExit bool
 }
 
 // NewModel creates a new Model

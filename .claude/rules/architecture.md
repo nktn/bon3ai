@@ -14,7 +14,9 @@ stateDiagram-v2
     ModeNormal --> ModeNewDir: A
     ModeNormal --> ModeConfirmDelete: D / Delete
     ModeNormal --> ModePreview: o (text/binary/image)
+    ModeNormal --> ModeGoTo: gn
     ModeNormal --> [*]: q / Ctrl+C
+    ModeNormal --> [*]: Q (print cwd)
 
     ModeSearch --> ModeNormal: Enter (confirm)
     ModeSearch --> ModeNormal: Esc (cancel)
@@ -32,6 +34,9 @@ stateDiagram-v2
     ModeConfirmDelete --> ModeNormal: n / N / Esc (cancel)
 
     ModePreview --> ModeNormal: q / Esc / o
+
+    ModeGoTo --> ModeNormal: Enter (confirm)
+    ModeGoTo --> ModeNormal: Esc (cancel)
 ```
 
 ## States
@@ -45,6 +50,7 @@ stateDiagram-v2
 | ModeNewDir | 新規ディレクトリ名入力中 |
 | ModeConfirmDelete | 削除確認ダイアログ |
 | ModePreview | ファイルプレビュー表示中（テキスト/バイナリ/画像） |
+| ModeGoTo | パス入力中（ディレクトリ移動） |
 
 ## Transitions
 
@@ -55,12 +61,40 @@ stateDiagram-v2
 - `A` → ModeNewDir
 - `D` or `Delete` → ModeConfirmDelete
 - `o` → ModePreview
+- `gn` → ModeGoTo
 - `q` or `Ctrl+C` → 終了
+- `Q` → 終了 + cwd出力（シェル連携用）
 
 ### ModeNormal への遷移
 - 入力モード: `Enter` (確定) or `Esc` (キャンセル)
 - 削除確認: `y/Y/Enter` (実行) or `n/N/Esc` (キャンセル)
 - プレビュー: `q/Esc/o`
+- GoTo: `Enter` (確定) or `Esc` (キャンセル)
+
+## Directory Navigation (netrw-style)
+
+| キー | 動作 |
+|------|------|
+| `-` | 親ディレクトリへ移動 |
+| `~` | ホームディレクトリへ移動 |
+| `gn` | パス入力モード（任意のパスへ移動） |
+| `gg` | ツリー先頭へ（vim標準） |
+| `Q` | 終了 + 現在のルートをstdoutに出力 |
+
+### シェル連携
+
+`Q`で終了時にルートパスを出力。シェル関数でcdに連携：
+
+```bash
+# ~/.zshrc or ~/.bashrc
+bon3cd() {
+    local dir
+    dir=$(bon3 "$@")
+    if [[ -n "$dir" && -d "$dir" ]]; then
+        cd "$dir"
+    fi
+}
+```
 
 ## Preview Mode
 
