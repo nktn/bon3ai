@@ -155,7 +155,8 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	// Preview
 	case "o":
-		m.openPreview()
+		cmd := m.openPreview()
+		return m, cmd
 
 	// System clipboard
 	case "c":
@@ -665,15 +666,15 @@ func (m *Model) searchNext() {
 }
 
 // Preview
-func (m *Model) openPreview() {
+func (m *Model) openPreview() tea.Cmd {
 	node := m.tree.GetNode(m.selected)
 	if node == nil {
-		return
+		return nil
 	}
 
 	if node.IsDir {
 		m.message = "Cannot preview directory"
-		return
+		return nil
 	}
 
 	// Reset preview state
@@ -691,7 +692,7 @@ func (m *Model) openPreview() {
 		imgWidth, imgHeight, imgFormat, imgSize, err := getImageInfo(node.Path)
 		if err != nil {
 			m.message = fmt.Sprintf("Error: %v", err)
-			return
+			return nil
 		}
 		m.imageWidth = imgWidth
 		m.imageHeight = imgHeight
@@ -701,19 +702,23 @@ func (m *Model) openPreview() {
 		lines, err := m.loadImagePreview(node.Path)
 		if err != nil {
 			m.message = err.Error()
-			return
+			return nil
 		}
 		m.previewContent = lines
 		m.previewIsBinary = false
 		// previewIsImage is set in loadImagePreview (true for chafa/Kitty, false for ASCII)
 		m.inputMode = ModePreview
-		return
+		// Clear screen for chafa/Kitty images to prevent background text showing through
+		if m.previewIsImage {
+			return tea.ClearScreen
+		}
+		return nil
 	}
 
 	content, err := os.ReadFile(node.Path)
 	if err != nil {
 		m.message = fmt.Sprintf("Error: %v", err)
-		return
+		return nil
 	}
 
 	m.previewIsImage = false
@@ -728,6 +733,7 @@ func (m *Model) openPreview() {
 	}
 
 	m.inputMode = ModePreview
+	return nil
 }
 
 func (m *Model) closePreview() {
