@@ -290,6 +290,8 @@ func (m Model) renderInputPopup() string {
 		title = "New File"
 	case ModeNewDir:
 		title = "New Directory"
+	case ModeGoTo:
+		title = "Go to"
 	}
 
 	content := fmt.Sprintf(" %s: %s█", title, m.inputBuffer)

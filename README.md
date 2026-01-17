@@ -52,10 +52,16 @@ bon3 ~/Documents  # Specific directory
 | `k` / `↑` | Move up |
 | `l` / `Enter` | Expand directory |
 | `h` / `Backspace` | Collapse / Go to parent |
-| `g` / `G` | Jump to top / bottom |
+| `gg` / `G` | Jump to top / bottom |
 | `Tab` | Toggle expand/collapse |
 | `H` | Collapse all |
 | `L` | Expand all |
+
+### Directory Navigation
+
+| Key | Action |
+|-----|--------|
+| `gn` | Go to path (input mode, supports `~` and `..`) |
 
 ### File Operations
 

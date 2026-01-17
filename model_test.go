@@ -130,12 +130,14 @@ func TestModel_Navigation_TopBottom(t *testing.T) {
 		t.Errorf("Selection should be %d after 'G', got %d", expectedBottom, m.selected)
 	}
 
-	// Press 'g' to go to top
+	// Press 'gg' to go to top (netrw-style: g sets pending, second g goes to top)
+	newM, _ = m.Update(keyMsg("g"))
+	m = newM.(Model)
 	newM, _ = m.Update(keyMsg("g"))
 	m = newM.(Model)
 
 	if m.selected != 0 {
-		t.Errorf("Selection should be 0 after 'g', got %d", m.selected)
+		t.Errorf("Selection should be 0 after 'gg', got %d", m.selected)
 	}
 }
 

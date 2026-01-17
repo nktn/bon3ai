@@ -38,7 +38,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch m.inputMode {
 		case ModeNormal:
 			return m.updateNormalMode(msg)
-		case ModeSearch, ModeRename, ModeNewFile, ModeNewDir:
+		case ModeSearch, ModeRename, ModeNewFile, ModeNewDir, ModeGoTo:
 			return m.updateInputMode(msg)
 		case ModeConfirmDelete:
 			return m.updateConfirmMode(msg)
@@ -92,7 +92,28 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.message = ""
 	}
 
-	switch msg.String() {
+	key := msg.String()
+
+	// Handle gPending state (netrw-style `gn` combo)
+	if m.gPending {
+		m.gPending = false
+		switch key {
+		case "g":
+			// gg -> go to top
+			m.selected = 0
+			m.adjustScroll()
+			return m, nil
+		case "n":
+			// gn -> go to new path
+			m.startGoTo()
+			return m, nil
+		default:
+			// Any other key cancels g and is ignored
+			return m, nil
+		}
+	}
+
+	switch key {
 	case "q", "ctrl+c":
 		if m.watcher != nil {
 			m.watcher.Close()
@@ -105,7 +126,9 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "down", "j":
 		m.moveDown()
 	case "g":
-		m.selected = 0
+		// Start g-pending for gg/gn combos
+		m.gPending = true
+		return m, nil
 	case "G":
 		m.selected = m.tree.Len() - 1
 
@@ -580,6 +603,8 @@ func (m *Model) confirmInput() {
 			return
 		}
 		m.searchNext()
+	case ModeGoTo:
+		m.doGoTo()
 	}
 
 	m.inputMode = ModeNormal
@@ -1063,4 +1088,81 @@ func (m *Model) copyFilename() {
 	} else {
 		m.message = fmt.Sprintf("Copied name: %s", node.Name)
 	}
+}
+
+// Directory navigation (netrw-style)
+
+func (m *Model) startGoTo() {
+	m.inputBuffer = ""
+	m.inputMode = ModeGoTo
+}
+
+func (m *Model) doGoTo() {
+	if m.inputBuffer == "" {
+		return
+	}
+
+	// Expand ~ to home directory
+	path := m.inputBuffer
+	if strings.HasPrefix(path, "~") {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			m.message = fmt.Sprintf("Error: %v", err)
+			m.inputBuffer = ""
+			return
+		}
+		path = filepath.Join(home, path[1:])
+	}
+
+	// Resolve path relative to current tree root (not process cwd)
+	var absPath string
+	if filepath.IsAbs(path) {
+		absPath = filepath.Clean(path)
+	} else {
+		absPath = filepath.Clean(filepath.Join(m.tree.Root.Path, path))
+	}
+
+	m.changeRoot(absPath)
+	m.inputBuffer = ""
+}
+
+func (m *Model) changeRoot(newPath string) {
+	// Check if path exists and is a directory
+	info, err := os.Stat(newPath)
+	if err != nil {
+		m.message = fmt.Sprintf("Error: %v", err)
+		return
+	}
+	if !info.IsDir() {
+		m.message = "Not a directory"
+		return
+	}
+
+	// Create new tree
+	tree, err := NewFileTree(newPath, m.showHidden)
+	if err != nil {
+		m.message = fmt.Sprintf("Error: %v", err)
+		return
+	}
+	m.tree = tree
+	m.selected = 0
+	m.scrollOffset = 0
+
+	// Update VCS
+	m.vcsRepo = NewVCSRepo(newPath)
+	m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
+
+	// Update watcher
+	if m.watcher != nil {
+		m.watcher.Close()
+	}
+	if m.watcherEnabled {
+		watcher, _ := NewWatcher(newPath)
+		m.watcher = watcher
+		if m.watcher != nil {
+			m.watcher.WatchExpandedDirs(m.tree)
+		}
+	}
+
+	m.message = fmt.Sprintf("→ %s", newPath)
 }
