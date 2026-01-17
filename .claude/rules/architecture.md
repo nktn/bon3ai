@@ -71,13 +71,11 @@ stateDiagram-v2
 - プレビュー: `q/Esc/o`
 - GoTo: `Enter` (確定) or `Esc` (キャンセル)
 
-## Directory Navigation (netrw-style)
+## Directory Navigation
 
 | キー | 動作 |
 |------|------|
-| `-` | 親ディレクトリへ移動 |
-| `~` | ホームディレクトリへ移動 |
-| `gn` | パス入力モード（任意のパスへ移動） |
+| `gn` | パス入力モード（`~`や`..`も対応） |
 | `gg` | ツリー先頭へ（vim標準） |
 | `Q` | 終了 + 現在のルートをstdoutに出力 |
 

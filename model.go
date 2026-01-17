@@ -167,8 +167,7 @@ type Model struct {
 	watcherToggling bool
 
 	// Directory navigation
-	prevRoot string // Previous root path for `-` command
-	gPending bool   // Waiting for second key after `g`
+	gPending bool // Waiting for second key after `g`
 
 	// Quit with cd
 	printCwdOnExit bool

@@ -57,13 +57,11 @@ bon3 ~/Documents  # Specific directory
 | `H` | Collapse all |
 | `L` | Expand all |
 
-### Directory Navigation (netrw-style)
+### Directory Navigation
 
 | Key | Action |
 |-----|--------|
-| `-` | Go to parent directory |
-| `~` | Go to home directory |
-| `gn` | Go to path (input mode) |
+| `gn` | Go to path (input mode, supports `~` and `..`) |
 
 ### File Operations
 

@@ -139,12 +139,6 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "G":
 		m.selected = m.tree.Len() - 1
 
-	// Directory navigation (netrw-style)
-	case "-":
-		m.goToParent()
-	case "~":
-		m.goToHome()
-
 	// Expand/Collapse
 	case "enter", "l":
 		m.expandCurrent()
@@ -1139,24 +1133,6 @@ func (m *Model) doGoTo() {
 	m.inputBuffer = ""
 }
 
-func (m *Model) goToParent() {
-	parent := filepath.Dir(m.tree.Root.Path)
-	if parent == m.tree.Root.Path {
-		m.message = "Already at root"
-		return
-	}
-	m.changeRoot(parent)
-}
-
-func (m *Model) goToHome() {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		m.message = fmt.Sprintf("Error: %v", err)
-		return
-	}
-	m.changeRoot(home)
-}
-
 func (m *Model) changeRoot(newPath string) {
 	// Check if path exists and is a directory
 	info, err := os.Stat(newPath)
@@ -1168,9 +1144,6 @@ func (m *Model) changeRoot(newPath string) {
 		m.message = "Not a directory"
 		return
 	}
-
-	// Save current root for `-` command
-	m.prevRoot = m.tree.Root.Path
 
 	// Create new tree
 	tree, err := NewFileTree(newPath, m.showHidden)
