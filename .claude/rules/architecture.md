@@ -16,6 +16,7 @@ stateDiagram-v2
     ModeNormal --> ModePreview: o (text/binary/image)
     ModeNormal --> ModeGoTo: gn
     ModeNormal --> [*]: q / Ctrl+C
+    ModeNormal --> [*]: Q (print cwd)
 
     ModeSearch --> ModeNormal: Enter (confirm)
     ModeSearch --> ModeNormal: Esc (cancel)
@@ -62,6 +63,7 @@ stateDiagram-v2
 - `o` → ModePreview
 - `gn` → ModeGoTo
 - `q` or `Ctrl+C` → 終了
+- `Q` → 終了 + cwd出力
 
 ### ModeNormal への遷移
 - 入力モード: `Enter` (確定) or `Esc` (キャンセル)
@@ -75,6 +77,7 @@ stateDiagram-v2
 |------|------|
 | `gn` | パス入力モード（`~`や`..`も対応） |
 | `gg` | ツリー先頭へ（vim標準） |
+| `Q` | 終了 + cwd出力（シェル連携用） |
 
 ## Preview Mode
 

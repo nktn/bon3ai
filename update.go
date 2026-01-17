@@ -119,6 +119,13 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.watcher.Close()
 		}
 		return m, tea.Quit
+	case "Q":
+		// Quit and print cwd for shell integration
+		if m.watcher != nil {
+			m.watcher.Close()
+		}
+		m.printCwdOnExit = true
+		return m, tea.Quit
 
 	// Navigation
 	case "up", "k":

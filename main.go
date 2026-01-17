@@ -23,8 +23,14 @@ func main() {
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)
-	if _, err := p.Run(); err != nil {
+	finalModel, err := p.Run()
+	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Print cwd for shell integration (Q key)
+	if m, ok := finalModel.(Model); ok && m.printCwdOnExit {
+		fmt.Println(m.tree.Root.Path)
 	}
 }

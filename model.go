@@ -168,6 +168,9 @@ type Model struct {
 
 	// Directory navigation
 	gPending bool // Waiting for second key after `g`
+
+	// Shell integration
+	printCwdOnExit bool
 }
 
 // NewModel creates a new Model
