@@ -111,7 +111,6 @@ bon3 ~/Documents  # Specific directory
 | `n` | Next search match |
 | `?` | Show help |
 | `q` / `Ctrl+C` | Quit |
-| `Q` | Quit and print cwd |
 
 ## Mouse
 
@@ -141,23 +140,6 @@ bon3ai automatically detects the version control system and shows status:
 - **Jujutsu (jj)**: Shows change ID and bookmark (e.g., ` @hogehoge (main)`)
 
 Priority: If both `.jj` and `.git` exist, Jujutsu is used (common for jj users working with GitHub).
-
-## Shell Integration (Optional)
-
-If you want to change directory in your shell after navigating in bon3, add this function to your shell config:
-
-```bash
-# ~/.zshrc or ~/.bashrc
-bon3cd() {
-    local dir
-    dir=$(bon3 "$@")
-    if [[ -n "$dir" && -d "$dir" ]]; then
-        cd "$dir"
-    fi
-}
-```
-
-Use `bon3cd` instead of `bon3`, then press `Q` to quit and cd into the current directory.
 
 ## Requirements
 
