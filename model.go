@@ -139,6 +139,12 @@ type Model struct {
 	previewIsBinary bool
 	previewIsImage  bool
 
+	// Image metadata
+	imageWidth  int
+	imageHeight int
+	imageFormat string
+	imageSize   int64
+
 	// Mouse support
 	lastClickTime  time.Time
 	lastClickIndex int

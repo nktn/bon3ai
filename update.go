@@ -2,12 +2,20 @@ package main
 
 import (
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
 	"time"
+
+	_ "golang.org/x/image/bmp"
+	_ "golang.org/x/image/tiff"
+	_ "golang.org/x/image/webp"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/qeesung/image2ascii/convert"
@@ -668,11 +676,28 @@ func (m *Model) openPreview() {
 		return
 	}
 
+	// Reset preview state
 	m.previewPath = node.Path
 	m.previewScroll = 0
+	m.previewIsImage = false
+	m.imageWidth = 0
+	m.imageHeight = 0
+	m.imageFormat = ""
+	m.imageSize = 0
 
 	// Check if image file
 	if isImageFile(node.Path) {
+		// Get image metadata
+		imgWidth, imgHeight, imgFormat, imgSize, err := getImageInfo(node.Path)
+		if err != nil {
+			m.message = fmt.Sprintf("Error: %v", err)
+			return
+		}
+		m.imageWidth = imgWidth
+		m.imageHeight = imgHeight
+		m.imageFormat = imgFormat
+		m.imageSize = imgSize
+
 		lines, err := m.loadImagePreview(node.Path)
 		if err != nil {
 			m.message = err.Error()
@@ -711,6 +736,11 @@ func (m *Model) closePreview() {
 	m.previewPath = ""
 	m.previewScroll = 0
 	m.previewIsImage = false
+	// Reset image metadata
+	m.imageWidth = 0
+	m.imageHeight = 0
+	m.imageFormat = ""
+	m.imageSize = 0
 }
 
 // clearKittyImages sends escape sequence to delete all Kitty graphics
@@ -728,10 +758,59 @@ func isImageFile(path string) bool {
 	return imageExts[ext]
 }
 
+// getImageInfo retrieves image metadata with graceful degradation.
+// Returns dimensions, format, and file size. On decode failure, falls back to
+// extension-based format detection. Only returns error if file doesn't exist.
+func getImageInfo(path string) (width, height int, format string, size int64, err error) {
+	// Get file size
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0, 0, "", 0, err
+	}
+	size = info.Size()
+
+	// Get image dimensions and format
+	file, err := os.Open(path)
+	if err != nil {
+		// Fallback: return format from extension if file can't be opened
+		return 0, 0, getFormatFromExtension(path), size, nil
+	}
+	defer file.Close()
+
+	config, formatName, err := image.DecodeConfig(file)
+	if err != nil {
+		// Fallback: return format from extension if image can't be decoded (e.g., ICO)
+		return 0, 0, getFormatFromExtension(path), size, nil
+	}
+
+	return config.Width, config.Height, strings.ToUpper(formatName), size, nil
+}
+
+// getFormatFromExtension returns image format name based on file extension
+func getFormatFromExtension(path string) string {
+	ext := strings.ToLower(filepath.Ext(path))
+	formats := map[string]string{
+		".png":  "PNG",
+		".jpg":  "JPEG",
+		".jpeg": "JPEG",
+		".gif":  "GIF",
+		".bmp":  "BMP",
+		".webp": "WEBP",
+		".tiff": "TIFF",
+		".tif":  "TIFF",
+		".ico":  "ICO",
+	}
+	if f, ok := formats[ext]; ok {
+		return f
+	}
+	return ""
+}
+
 func (m *Model) loadImagePreview(path string) ([]string, error) {
 	// Calculate size based on terminal dimensions
 	width := m.width - 2
 	height := m.height - 4
+
 	if width < 10 {
 		width = 10
 	}
