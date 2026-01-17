@@ -1114,12 +1114,12 @@ func (m *Model) doGoTo() {
 		path = filepath.Join(home, path[1:])
 	}
 
-	// Resolve to absolute path
-	absPath, err := filepath.Abs(path)
-	if err != nil {
-		m.message = fmt.Sprintf("Error: %v", err)
-		m.inputBuffer = ""
-		return
+	// Resolve path relative to current tree root (not process cwd)
+	var absPath string
+	if filepath.IsAbs(path) {
+		absPath = filepath.Clean(path)
+	} else {
+		absPath = filepath.Clean(filepath.Join(m.tree.Root.Path, path))
 	}
 
 	m.changeRoot(absPath)
