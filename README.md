@@ -1,6 +1,6 @@
 # bon3ai - TUI File Tree Explorer
 
-A TUI file explorer built in Go with Vim keybinds and Git/Jujutsu status display.
+A simple TUI file explorer built in Go with Vim keybinds and Git/Jujutsu status display.
 
 > **Note:** The project is called **bon3ai**, but the command is **`bon3`**
 
