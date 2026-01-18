@@ -323,11 +323,32 @@ func (m Model) renderInputPopup() string {
 			Background(lipgloss.Color("238")).
 			Foreground(lipgloss.Color("252"))
 
-		// Limit displayed candidates
-		maxCandidates := 5
-		candidates := m.completionCandidates
-		if len(candidates) > maxCandidates {
-			candidates = candidates[:maxCandidates]
+		// Calculate visible range based on selection (scroll to keep selection visible)
+		maxVisible := 5
+		totalCandidates := len(m.completionCandidates)
+		startIdx := 0
+		endIdx := totalCandidates
+
+		if totalCandidates > maxVisible {
+			// Calculate scroll offset to keep selection visible
+			selectedIdx := m.completionIndex
+			if selectedIdx < 0 {
+				selectedIdx = 0
+			}
+
+			// Keep selection in the middle when possible
+			startIdx = selectedIdx - maxVisible/2
+			if startIdx < 0 {
+				startIdx = 0
+			}
+			endIdx = startIdx + maxVisible
+			if endIdx > totalCandidates {
+				endIdx = totalCandidates
+				startIdx = endIdx - maxVisible
+				if startIdx < 0 {
+					startIdx = 0
+				}
+			}
 		}
 
 		content += "\n"
@@ -336,12 +357,25 @@ func (m Model) renderInputPopup() string {
 		candidateStyle = candidateStyle.Width(candidateLineWidth)
 		selectedCandidateStyle = selectedCandidateStyle.Width(candidateLineWidth)
 
-		for i, candidate := range candidates {
+		// Show scroll indicator at top if needed
+		if startIdx > 0 {
+			scrollStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+			content += scrollStyle.Render(fmt.Sprintf(" ↑ %d more", startIdx)) + "\n"
+		}
+
+		// Truncate width for display (keep some minimum visible)
+		truncateWidth := maxContentWidth - 4
+		if truncateWidth < 10 {
+			truncateWidth = 10
+		}
+
+		for i := startIdx; i < endIdx; i++ {
+			candidate := m.completionCandidates[i]
 			displayCandidate := collapseHomePath(candidate)
 			// Truncate long paths (keep the end, which contains the filename)
 			candidateWidth := lipgloss.Width(displayCandidate)
-			if candidateWidth > maxContentWidth-2 {
-				displayCandidate = "…" + ansi.TruncateLeft(displayCandidate, maxContentWidth-3, "")
+			if candidateWidth > truncateWidth {
+				displayCandidate = "…" + ansi.TruncateLeft(displayCandidate, truncateWidth-1, "")
 			}
 			if i == m.completionIndex {
 				content += selectedCandidateStyle.Render(" "+displayCandidate) + "\n"
@@ -350,10 +384,10 @@ func (m Model) renderInputPopup() string {
 			}
 		}
 
-		// Show "more" indicator
-		if len(m.completionCandidates) > maxCandidates {
-			moreStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
-			content += moreStyle.Render(fmt.Sprintf(" ... +%d more", len(m.completionCandidates)-maxCandidates))
+		// Show scroll indicator at bottom if needed
+		if endIdx < totalCandidates {
+			scrollStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+			content += scrollStyle.Render(fmt.Sprintf(" ↓ %d more", totalCandidates-endIdx))
 		}
 	}
 
