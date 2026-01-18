@@ -301,9 +301,20 @@ func (m Model) renderInputPopup() string {
 		title = "Go to"
 	}
 
+	// Calculate max content width (terminal width - border - padding)
+	maxContentWidth := m.width - 6
+	if maxContentWidth < 20 {
+		maxContentWidth = 20
+	}
+
 	// Display input with cursor
 	displayBuffer := collapseHomePath(m.inputBuffer)
 	content := fmt.Sprintf(" %s: %s█", title, displayBuffer)
+
+	// Truncate input line if too long
+	if lipgloss.Width(content) > maxContentWidth {
+		content = truncateString(content, maxContentWidth-1) + "…"
+	}
 
 	// Add completion candidates if available
 	if m.inputMode == ModeGoTo && len(m.completionCandidates) > 0 {
@@ -322,6 +333,10 @@ func (m Model) renderInputPopup() string {
 		content += "\n"
 		for i, candidate := range candidates {
 			displayCandidate := collapseHomePath(candidate)
+			// Truncate long paths
+			if len(displayCandidate) > maxContentWidth-2 {
+				displayCandidate = "…" + displayCandidate[len(displayCandidate)-(maxContentWidth-3):]
+			}
 			if i == m.completionIndex {
 				content += selectedCandidateStyle.Render(" "+displayCandidate) + "\n"
 			} else {
@@ -336,7 +351,9 @@ func (m Model) renderInputPopup() string {
 		}
 	}
 
-	return inputStyle.Render(content)
+	// Apply width constraint to the popup
+	popupStyle := inputStyle.Width(maxContentWidth)
+	return popupStyle.Render(content)
 }
 
 // placeOverlay composites the foreground on top of the background
@@ -620,4 +637,13 @@ func formatFileSize(bytes int64) string {
 	default:
 		return fmt.Sprintf("%dB", bytes)
 	}
+}
+
+// truncateString truncates a string to maxWidth runes
+func truncateString(s string, maxWidth int) string {
+	runes := []rune(s)
+	if len(runes) <= maxWidth {
+		return s
+	}
+	return string(runes[:maxWidth])
 }
