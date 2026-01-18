@@ -14,6 +14,7 @@ stateDiagram-v2
     ModeNormal --> ModeNewDir: A
     ModeNormal --> ModeConfirmDelete: D / Delete
     ModeNormal --> ModePreview: o (text/binary/image)
+    ModeNormal --> ModeGoTo: gn
     ModeNormal --> [*]: q / Ctrl+C
 
     ModeSearch --> ModeNormal: Enter (confirm)
@@ -32,6 +33,9 @@ stateDiagram-v2
     ModeConfirmDelete --> ModeNormal: n / N / Esc (cancel)
 
     ModePreview --> ModeNormal: q / Esc / o
+
+    ModeGoTo --> ModeNormal: Enter (confirm)
+    ModeGoTo --> ModeNormal: Esc (cancel)
 ```
 
 ## States
@@ -45,6 +49,7 @@ stateDiagram-v2
 | ModeNewDir | 新規ディレクトリ名入力中 |
 | ModeConfirmDelete | 削除確認ダイアログ |
 | ModePreview | ファイルプレビュー表示中（テキスト/バイナリ/画像） |
+| ModeGoTo | パス入力中（ディレクトリ移動） |
 
 ## Transitions
 
@@ -55,12 +60,21 @@ stateDiagram-v2
 - `A` → ModeNewDir
 - `D` or `Delete` → ModeConfirmDelete
 - `o` → ModePreview
+- `gn` → ModeGoTo
 - `q` or `Ctrl+C` → 終了
 
 ### ModeNormal への遷移
 - 入力モード: `Enter` (確定) or `Esc` (キャンセル)
 - 削除確認: `y/Y/Enter` (実行) or `n/N/Esc` (キャンセル)
 - プレビュー: `q/Esc/o`
+- GoTo: `Enter` (確定) or `Esc` (キャンセル)
+
+## Directory Navigation
+
+| キー | 動作 |
+|------|------|
+| `gn` | パス入力モード（`~`や`..`も対応） |
+| `gg` | ツリー先頭へ（vim標準） |
 
 ## Preview Mode
 

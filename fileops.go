@@ -131,6 +131,10 @@ func MoveFile(src, destDir string) (string, error) {
 func DeleteFile(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
+		// Already deleted (ghost node) - treat as success
+		if os.IsNotExist(err) {
+			return nil
+		}
 		return err
 	}
 
