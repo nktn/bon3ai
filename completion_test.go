@@ -217,23 +217,44 @@ func TestGetCompletionsRelativePath(t *testing.T) {
 }
 
 func TestGetCompletionsTilde(t *testing.T) {
-	home, err := os.UserHomeDir()
-	if err != nil {
-		t.Skip("cannot get home directory")
+	// Create a temporary directory to use as HOME
+	// This avoids flaky tests when real HOME has no visible files
+	tmpHome := t.TempDir()
+
+	// Create test files in the fake home directory
+	testDirs := []string{"Documents", "Downloads"}
+	testFiles := []string{"readme.txt"}
+
+	for _, dir := range testDirs {
+		if err := os.Mkdir(filepath.Join(tmpHome, dir), 0755); err != nil {
+			t.Fatalf("failed to create test dir: %v", err)
+		}
 	}
+	for _, file := range testFiles {
+		if err := os.WriteFile(filepath.Join(tmpHome, file), []byte{}, 0644); err != nil {
+			t.Fatalf("failed to create test file: %v", err)
+		}
+	}
+
+	// Save original HOME and set temporary one
+	origHome := os.Getenv("HOME")
+	os.Setenv("HOME", tmpHome)
+	t.Cleanup(func() {
+		os.Setenv("HOME", origHome)
+	})
 
 	t.Run("tilde alone lists home directory", func(t *testing.T) {
 		candidates, _ := getCompletions("~", "")
 
-		// Should return entries from home directory
-		if len(candidates) == 0 {
-			t.Error("expected candidates for ~ (home directory)")
+		// Should return entries from home directory (2 dirs + 1 file = 3)
+		if len(candidates) != 3 {
+			t.Errorf("expected 3 candidates, got %d: %v", len(candidates), candidates)
 		}
 
 		// All candidates should be under home directory
 		for _, c := range candidates {
-			if !strings.HasPrefix(c, home) {
-				t.Errorf("candidate %q should be under home %q", c, home)
+			if !strings.HasPrefix(c, tmpHome) {
+				t.Errorf("candidate %q should be under home %q", c, tmpHome)
 			}
 		}
 	})
@@ -241,28 +262,31 @@ func TestGetCompletionsTilde(t *testing.T) {
 	t.Run("tilde with slash lists home directory", func(t *testing.T) {
 		candidates, _ := getCompletions("~/", "")
 
-		// Should return entries from home directory
-		if len(candidates) == 0 {
-			t.Error("expected candidates for ~/ (home directory)")
+		// Should return entries from home directory (2 dirs + 1 file = 3)
+		if len(candidates) != 3 {
+			t.Errorf("expected 3 candidates, got %d: %v", len(candidates), candidates)
 		}
 
 		// All candidates should be under home directory
 		for _, c := range candidates {
-			if !strings.HasPrefix(c, home) {
-				t.Errorf("candidate %q should be under home %q", c, home)
+			if !strings.HasPrefix(c, tmpHome) {
+				t.Errorf("candidate %q should be under home %q", c, tmpHome)
 			}
 		}
 	})
 
 	t.Run("tilde with prefix matches in home", func(t *testing.T) {
-		// This test assumes there's at least something starting with "D" in home
-		// (like Desktop, Documents, Downloads on most systems)
-		candidates, _ := getCompletions("~/D", "")
+		candidates, _ := getCompletions("~/Do", "")
+
+		// Should match Documents and Downloads
+		if len(candidates) != 2 {
+			t.Errorf("expected 2 candidates (Documents, Downloads), got %d: %v", len(candidates), candidates)
+		}
 
 		// Candidates should be under home directory
 		for _, c := range candidates {
-			if !strings.HasPrefix(c, home) {
-				t.Errorf("candidate %q should be under home %q", c, home)
+			if !strings.HasPrefix(c, tmpHome) {
+				t.Errorf("candidate %q should be under home %q", c, tmpHome)
 			}
 		}
 	})
