@@ -6,6 +6,7 @@ import (
 	_ "image/gif"
 	_ "image/jpeg"
 	_ "image/png"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -210,11 +211,13 @@ func (m Model) updateInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.cancelInput()
 	case "backspace":
 		if len(m.inputBuffer) > 0 {
-			m.inputBuffer = m.inputBuffer[:len(m.inputBuffer)-1]
+			runes := []rune(m.inputBuffer)
+			m.inputBuffer = string(runes[:len(runes)-1])
 		}
 	default:
-		if len(msg.String()) == 1 {
-			m.inputBuffer += msg.String()
+		// Accept non-ASCII characters (e.g., Japanese)
+		if len(msg.Runes) > 0 {
+			m.inputBuffer += string(msg.Runes)
 		}
 	}
 
@@ -512,7 +515,7 @@ func (m *Model) paste() {
 	}
 
 	m.message = fmt.Sprintf("Pasted %d item(s)", success)
-	m.tree.Refresh()
+	m.refreshTreeAndVCS()
 	m.adjustSelection()
 }
 
@@ -526,6 +529,13 @@ func (m *Model) getPasteDestination() string {
 		return node.Path
 	}
 	return filepath.Dir(node.Path)
+}
+
+// refreshTreeAndVCS refreshes the tree and VCS status after file operations
+func (m *Model) refreshTreeAndVCS() {
+	m.tree.Refresh()
+	m.vcsRepo.Refresh(m.tree.Root.Path)
+	m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
 }
 
 // Delete
@@ -561,7 +571,7 @@ func (m *Model) executeDelete() {
 	}
 
 	m.marked = make(map[string]bool) // Clear marks without overwriting message
-	m.tree.Refresh()
+	m.refreshTreeAndVCS()
 	m.adjustSelection()
 	m.message = fmt.Sprintf("Deleted %d item(s)", success)
 }
@@ -626,7 +636,7 @@ func (m *Model) doRename() {
 		m.message = fmt.Sprintf("Error: %v", err)
 	} else {
 		m.message = fmt.Sprintf("Renamed to %s", filepath.Base(newPath))
-		m.tree.Refresh()
+		m.refreshTreeAndVCS()
 	}
 	m.inputBuffer = ""
 }
@@ -642,7 +652,7 @@ func (m *Model) doNewFile() {
 		m.message = fmt.Sprintf("Error: %v", err)
 	} else {
 		m.message = fmt.Sprintf("Created %s", filepath.Base(newPath))
-		m.tree.Refresh()
+		m.refreshTreeAndVCS()
 	}
 	m.inputBuffer = ""
 }
@@ -658,7 +668,7 @@ func (m *Model) doNewDir() {
 		m.message = fmt.Sprintf("Error: %v", err)
 	} else {
 		m.message = fmt.Sprintf("Created %s", filepath.Base(newPath))
-		m.tree.Refresh()
+		m.refreshTreeAndVCS()
 	}
 	m.inputBuffer = ""
 }
@@ -740,10 +750,26 @@ func (m *Model) openPreview() tea.Cmd {
 		return nil
 	}
 
-	content, err := os.ReadFile(node.Path)
+	// Limit preview to 512KB to avoid memory/UI issues with large files
+	const maxPreviewBytes = 512 * 1024
+
+	file, err := os.Open(node.Path)
 	if err != nil {
 		m.message = fmt.Sprintf("Error: %v", err)
 		return nil
+	}
+	defer file.Close()
+
+	limited := &io.LimitedReader{R: file, N: maxPreviewBytes + 1}
+	content, err := io.ReadAll(limited)
+	if err != nil {
+		m.message = fmt.Sprintf("Error: %v", err)
+		return nil
+	}
+
+	truncated := len(content) > maxPreviewBytes
+	if truncated {
+		content = content[:maxPreviewBytes]
 	}
 
 	m.previewIsImage = false
@@ -755,6 +781,10 @@ func (m *Model) openPreview() tea.Cmd {
 	} else {
 		m.previewIsBinary = false
 		m.previewContent = strings.Split(string(content), "\n")
+	}
+
+	if truncated {
+		m.message = "Preview truncated (file > 512KB)"
 	}
 
 	m.inputMode = ModePreview

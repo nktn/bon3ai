@@ -99,8 +99,15 @@ func (m Model) renderPreview() string {
 
 			// Truncate long lines
 			maxWidth := m.width - 6
+			if maxWidth < 1 {
+				maxWidth = 1
+			}
 			if len(line) > maxWidth {
-				line = line[:maxWidth-1] + "…"
+				if maxWidth == 1 {
+					line = "…"
+				} else {
+					line = line[:maxWidth-1] + "…"
+				}
 			}
 
 			b.WriteString(lineNumStyle.Render(lineNum))

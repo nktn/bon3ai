@@ -368,9 +368,10 @@ func TestDeleteFile_Directory(t *testing.T) {
 }
 
 func TestDeleteFile_NonExistent(t *testing.T) {
+	// Non-existent files should succeed (for ghost node support)
 	err := DeleteFile("/nonexistent/path/file.txt")
-	if err == nil {
-		t.Error("DeleteFile should return error for non-existent file")
+	if err != nil {
+		t.Errorf("DeleteFile should succeed for non-existent file (ghost node), got: %v", err)
 	}
 }
 
