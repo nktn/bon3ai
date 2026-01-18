@@ -742,12 +742,17 @@ func TestRefreshTreeAndVCS_CalledAfterRename(t *testing.T) {
 	}()
 
 	// Navigate to the file
+	found := false
 	for i := 0; i < model.tree.Len(); i++ {
 		node := model.tree.GetNode(i)
 		if node != nil && node.Path == oldFile {
 			model.selected = i
+			found = true
 			break
 		}
+	}
+	if !found {
+		t.Fatal("Rename target not found in tree")
 	}
 
 	// Set up rename
@@ -901,10 +906,14 @@ func TestVCSRefresh_WithGitRepo(t *testing.T) {
 	// Configure git user for commits
 	cmd = exec.Command("git", "config", "user.email", "test@test.com")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git config user.email failed: %v", err)
+	}
 	cmd = exec.Command("git", "config", "user.name", "Test")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git config user.name failed: %v", err)
+	}
 
 	// Create and commit a file
 	testFile := filepath.Join(tmpDir, "tracked.txt")
@@ -912,11 +921,15 @@ func TestVCSRefresh_WithGitRepo(t *testing.T) {
 
 	cmd = exec.Command("git", "add", "tracked.txt")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git add failed: %v", err)
+	}
 
 	cmd = exec.Command("git", "commit", "-m", "initial")
 	cmd.Dir = tmpDir
-	cmd.Run()
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git commit failed: %v", err)
+	}
 
 	model, err := NewModel(tmpDir)
 	if err != nil {
@@ -933,7 +946,7 @@ func TestVCSRefresh_WithGitRepo(t *testing.T) {
 		t.Error("Should detect git repo")
 	}
 
-	// Create a new untracked file
+	// Test 1: Create a new untracked file via doNewFile
 	model.inputBuffer = "untracked.txt"
 	model.selected = 0
 	model.doNewFile()
@@ -945,20 +958,74 @@ func TestVCSRefresh_WithGitRepo(t *testing.T) {
 		t.Errorf("New file should be untracked, got status %v", status)
 	}
 
-	// Modify tracked file
+	// Test 2: Modify tracked file and verify status
 	os.WriteFile(testFile, []byte("modified content"), 0644)
 	model.refreshTreeAndVCS()
 
-	// After refresh, VCS should show modified status
 	status = model.vcsRepo.GetStatus(testFile)
 	if status != VCSStatusModified {
 		t.Errorf("Modified file should have modified status, got %v", status)
 	}
 
-	// Delete the tracked file
+	// Test 3: Rename tracked file and verify VCS update
 	for i := 0; i < model.tree.Len(); i++ {
 		node := model.tree.GetNode(i)
 		if node != nil && node.Path == testFile {
+			model.selected = i
+			break
+		}
+	}
+	model.inputBuffer = "renamed.txt"
+	model.doRename()
+
+	// After rename, old path should show as deleted, new path as untracked
+	renamedFile := filepath.Join(tmpDir, "renamed.txt")
+	status = model.vcsRepo.GetStatus(renamedFile)
+	if status != VCSStatusUntracked {
+		t.Errorf("Renamed file should be untracked (new path), got status %v", status)
+	}
+
+	// Test 4: Copy file via paste and verify VCS update
+	// First, commit the renamed file so we have a tracked file again
+	cmd = exec.Command("git", "add", "renamed.txt")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git add renamed.txt failed: %v", err)
+	}
+	cmd = exec.Command("git", "commit", "-m", "add renamed")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("git commit failed: %v", err)
+	}
+	model.refreshTreeAndVCS()
+
+	// Create dest directory
+	destDir := filepath.Join(tmpDir, "dest")
+	os.Mkdir(destDir, 0755)
+	model.refreshTreeAndVCS()
+
+	// Copy renamed.txt to dest/
+	model.clipboard.Copy([]string{renamedFile})
+	for i := 0; i < model.tree.Len(); i++ {
+		node := model.tree.GetNode(i)
+		if node != nil && node.Path == destDir {
+			model.selected = i
+			break
+		}
+	}
+	model.paste()
+
+	// Pasted file should be untracked
+	pastedFile := filepath.Join(destDir, "renamed.txt")
+	status = model.vcsRepo.GetStatus(pastedFile)
+	if status != VCSStatusUntracked {
+		t.Errorf("Pasted file should be untracked, got status %v", status)
+	}
+
+	// Test 5: Delete a tracked file and verify VCS reports it
+	for i := 0; i < model.tree.Len(); i++ {
+		node := model.tree.GetNode(i)
+		if node != nil && node.Path == renamedFile {
 			model.selected = i
 			break
 		}
@@ -969,7 +1036,7 @@ func TestVCSRefresh_WithGitRepo(t *testing.T) {
 	deletedFiles := model.vcsRepo.GetDeletedFiles()
 	found := false
 	for _, f := range deletedFiles {
-		if strings.HasSuffix(f, "tracked.txt") {
+		if strings.HasSuffix(f, "renamed.txt") {
 			found = true
 			break
 		}
