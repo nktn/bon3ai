@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// getCompletions returns matching file/directory names and the common prefix.
+// getCompletions returns matching directory names and the common prefix.
 // Input is the current path being typed. baseDir is used for relative path resolution.
-// Returns (candidates, commonPrefix). Candidates include trailing "/" for directories.
+// Returns (candidates, commonPrefix). Only directories are returned (for navigation).
 func getCompletions(input, baseDir string) ([]string, string) {
 	if input == "" {
 		return nil, ""
@@ -63,19 +63,20 @@ func getCompletions(input, baseDir string) ([]string, string) {
 	lowerPrefix := strings.ToLower(prefix)
 
 	for _, entry := range entries {
+		// Only include directories (for navigation)
+		if !entry.IsDir() {
+			continue
+		}
+
 		name := entry.Name()
-		// Skip hidden files unless prefix starts with "."
+		// Skip hidden directories unless prefix starts with "."
 		if strings.HasPrefix(name, ".") && !strings.HasPrefix(prefix, ".") {
 			continue
 		}
 
 		// Case-insensitive prefix match
 		if strings.HasPrefix(strings.ToLower(name), lowerPrefix) {
-			fullPath := filepath.Join(dir, name)
-			// Add trailing separator for directories
-			if entry.IsDir() {
-				fullPath += string(os.PathSeparator)
-			}
+			fullPath := filepath.Join(dir, name) + string(os.PathSeparator)
 			candidates = append(candidates, fullPath)
 		}
 	}
