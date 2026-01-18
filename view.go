@@ -331,6 +331,11 @@ func (m Model) renderInputPopup() string {
 		}
 
 		content += "\n"
+		// Set consistent width for all candidates
+		candidateLineWidth := maxContentWidth - 1
+		candidateStyle = candidateStyle.Width(candidateLineWidth)
+		selectedCandidateStyle = selectedCandidateStyle.Width(candidateLineWidth)
+
 		for i, candidate := range candidates {
 			displayCandidate := collapseHomePath(candidate)
 			// Truncate long paths (keep the end, which contains the filename)
