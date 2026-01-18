@@ -76,6 +76,37 @@ stateDiagram-v2
 | `gn` | パス入力モード（`~`や`..`も対応） |
 | `gg` | ツリー先頭へ（vim標準） |
 
+### Tab補完 (ModeGoTo)
+
+ターミナルスタイルのパス補完機能。
+
+| キー | 動作 |
+|------|------|
+| `Tab` | 補完実行 / 次の候補 |
+| `Shift+Tab` | 前の候補 |
+| `Enter` | 確定 |
+| `Esc` | キャンセル |
+| 他のキー | 候補クリア |
+
+**補完ロジック**:
+1. 1件のみマッチ → 自動補完
+2. 複数マッチ → 共通プレフィックス補完 + 候補表示
+3. Tab連打 → 候補を順番に選択
+
+**実装** (`completion.go`):
+- `getCompletions(input)`: マッチするエントリと共通プレフィックスを返す
+- `findCommonPrefix(paths)`: 共通プレフィックス計算
+- `collapseHomePath(path)`: `~`表示用に変換
+
+**State Fields** (`model.go`):
+- `completionCandidates []string`: 補完候補リスト
+- `completionIndex int`: 選択中の候補 (-1 = 未選択)
+
+**表示** (`view.go`):
+- 最大5件表示
+- 選択中の候補をハイライト
+- 超過分は「... +N more」表示
+
 ## Preview Mode
 
 | 種類 | 判定条件 | 表示方法 | 終了時の処理 |
