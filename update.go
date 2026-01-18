@@ -1240,10 +1240,8 @@ func (m *Model) refreshCompletions() {
 	}
 
 	m.completionCandidates = candidates
-	// Reset selection if current index is out of range
-	if m.completionIndex >= len(candidates) {
-		m.completionIndex = len(candidates) - 1
-	}
+	// Reset selection when candidates change (user must re-select after typing)
+	m.completionIndex = -1
 }
 
 func (m *Model) doGoTo() {

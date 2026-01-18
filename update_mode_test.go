@@ -972,3 +972,355 @@ func TestInputMode_MixedUTF8AndASCII(t *testing.T) {
 		t.Errorf("Expected 'ファイル_' after backspace, got %q", m.inputBuffer)
 	}
 }
+
+// ========================================
+// ModeGoTo Completion Tests
+// ========================================
+
+func TestModeGoTo_FilterAsYouType_GeneratesCandidates(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Create test directories
+	os.Mkdir(filepath.Join(tmpDir, "src"), 0755)
+	os.Mkdir(filepath.Join(tmpDir, "scripts"), 0755)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeGoTo
+	model.inputBuffer = ""
+
+	// Type 's' - should generate candidates starting with 's'
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.inputBuffer != "s" {
+		t.Errorf("Expected inputBuffer to be 's', got %q", m.inputBuffer)
+	}
+	if len(m.completionCandidates) == 0 {
+		t.Error("Expected completion candidates to be generated on input")
+	}
+	// Should have both 'src/' and 'scripts/'
+	if len(m.completionCandidates) != 2 {
+		t.Errorf("Expected 2 candidates, got %d", len(m.completionCandidates))
+	}
+}
+
+func TestModeGoTo_FilterAsYouType_FiltersCandidates(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.Mkdir(filepath.Join(tmpDir, "src"), 0755)
+	os.Mkdir(filepath.Join(tmpDir, "scripts"), 0755)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeGoTo
+	model.inputBuffer = "s"
+	model.completionCandidates = []string{"src/", "scripts/"}
+	model.completionIndex = 0
+
+	// Type 'r' - should filter to 'scripts/' only
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.inputBuffer != "sr" {
+		t.Errorf("Expected inputBuffer to be 'sr', got %q", m.inputBuffer)
+	}
+	// Only 'src/' should remain
+	if len(m.completionCandidates) != 1 {
+		t.Errorf("Expected 1 candidate after filtering, got %d", len(m.completionCandidates))
+	}
+}
+
+func TestModeGoTo_FilterAsYouType_ResetsCompletionIndex(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.Mkdir(filepath.Join(tmpDir, "src"), 0755)
+	os.Mkdir(filepath.Join(tmpDir, "scripts"), 0755)
+	os.Mkdir(filepath.Join(tmpDir, "styles"), 0755)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeGoTo
+	model.inputBuffer = "s"
+	model.completionCandidates = []string{"scripts/", "src/", "styles/"}
+	model.completionIndex = 2 // User selected 'styles/'
+
+	// Type 'c' - should filter and RESET completionIndex
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.completionIndex != -1 {
+		t.Errorf("Expected completionIndex to be reset to -1, got %d", m.completionIndex)
+	}
+}
+
+func TestModeGoTo_ArrowDown_NavigatesCandidates(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.Mkdir(filepath.Join(tmpDir, "src"), 0755)
+	os.Mkdir(filepath.Join(tmpDir, "scripts"), 0755)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeGoTo
+	model.inputBuffer = "s"
+	model.completionCandidates = []string{"scripts/", "src/"}
+	model.completionIndex = -1
+
+	// Press down arrow
+	msg := tea.KeyMsg{Type: tea.KeyDown}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.completionIndex != 0 {
+		t.Errorf("Expected completionIndex to be 0 after down, got %d", m.completionIndex)
+	}
+
+	// Press down again
+	msg = tea.KeyMsg{Type: tea.KeyDown}
+	newModel, _ = m.Update(msg)
+	m = newModel.(Model)
+
+	if m.completionIndex != 1 {
+		t.Errorf("Expected completionIndex to be 1 after second down, got %d", m.completionIndex)
+	}
+
+	// Press down again - should wrap to 0
+	msg = tea.KeyMsg{Type: tea.KeyDown}
+	newModel, _ = m.Update(msg)
+	m = newModel.(Model)
+
+	if m.completionIndex != 0 {
+		t.Errorf("Expected completionIndex to wrap to 0, got %d", m.completionIndex)
+	}
+}
+
+func TestModeGoTo_ArrowUp_NavigatesCandidates(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.Mkdir(filepath.Join(tmpDir, "src"), 0755)
+	os.Mkdir(filepath.Join(tmpDir, "scripts"), 0755)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeGoTo
+	model.inputBuffer = "s"
+	model.completionCandidates = []string{"scripts/", "src/"}
+	model.completionIndex = 1
+
+	// Press up arrow
+	msg := tea.KeyMsg{Type: tea.KeyUp}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.completionIndex != 0 {
+		t.Errorf("Expected completionIndex to be 0 after up, got %d", m.completionIndex)
+	}
+
+	// Press up again - should wrap to last
+	msg = tea.KeyMsg{Type: tea.KeyUp}
+	newModel, _ = m.Update(msg)
+	m = newModel.(Model)
+
+	if m.completionIndex != 1 {
+		t.Errorf("Expected completionIndex to wrap to 1, got %d", m.completionIndex)
+	}
+}
+
+func TestModeGoTo_CtrlN_NavigatesCandidates(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.Mkdir(filepath.Join(tmpDir, "src"), 0755)
+	os.Mkdir(filepath.Join(tmpDir, "scripts"), 0755)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeGoTo
+	model.inputBuffer = "s"
+	model.completionCandidates = []string{"scripts/", "src/"}
+	model.completionIndex = -1
+
+	// Press Ctrl+n
+	msg := tea.KeyMsg{Type: tea.KeyCtrlN}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.completionIndex != 0 {
+		t.Errorf("Expected completionIndex to be 0 after Ctrl+n, got %d", m.completionIndex)
+	}
+}
+
+func TestModeGoTo_CtrlP_NavigatesCandidates(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.Mkdir(filepath.Join(tmpDir, "src"), 0755)
+	os.Mkdir(filepath.Join(tmpDir, "scripts"), 0755)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeGoTo
+	model.inputBuffer = "s"
+	model.completionCandidates = []string{"scripts/", "src/"}
+	model.completionIndex = 0
+
+	// Press Ctrl+p
+	msg := tea.KeyMsg{Type: tea.KeyCtrlP}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.completionIndex != 1 {
+		t.Errorf("Expected completionIndex to wrap to 1 after Ctrl+p, got %d", m.completionIndex)
+	}
+}
+
+func TestModeGoTo_Enter_AppliesSelectedCandidate(t *testing.T) {
+	tmpDir := t.TempDir()
+	targetDir := filepath.Join(tmpDir, "src")
+	os.Mkdir(targetDir, 0755)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeGoTo
+	model.inputBuffer = "s"
+	model.completionCandidates = []string{"src/"}
+	model.completionIndex = 0
+
+	// Press Enter - should apply selected candidate and change directory
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.inputMode != ModeNormal {
+		t.Errorf("Expected ModeNormal after Enter, got %v", m.inputMode)
+	}
+	// Tree root should be changed to src directory
+	if m.tree.Root.Path != targetDir {
+		t.Errorf("Expected tree root to be %s, got %s", targetDir, m.tree.Root.Path)
+	}
+}
+
+func TestModeGoTo_Enter_WithoutSelection_UsesInputBuffer(t *testing.T) {
+	tmpDir := t.TempDir()
+	targetDir := filepath.Join(tmpDir, "mydir")
+	os.Mkdir(targetDir, 0755)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeGoTo
+	model.inputBuffer = "mydir"
+	model.completionCandidates = []string{"mydir/"}
+	model.completionIndex = -1 // No selection
+
+	// Press Enter - should use inputBuffer directly
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.inputMode != ModeNormal {
+		t.Errorf("Expected ModeNormal after Enter, got %v", m.inputMode)
+	}
+	if m.tree.Root.Path != targetDir {
+		t.Errorf("Expected tree root to be %s, got %s", targetDir, m.tree.Root.Path)
+	}
+}
+
+func TestModeGoTo_Backspace_RefreshesCandidates(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.Mkdir(filepath.Join(tmpDir, "src"), 0755)
+	os.Mkdir(filepath.Join(tmpDir, "scripts"), 0755)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeGoTo
+	model.inputBuffer = "src"
+	model.completionCandidates = []string{"src/"}
+	model.completionIndex = 0
+
+	// Press Backspace - should expand candidates and reset index
+	msg := tea.KeyMsg{Type: tea.KeyBackspace}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.inputBuffer != "sr" {
+		t.Errorf("Expected inputBuffer to be 'sr', got %q", m.inputBuffer)
+	}
+	if m.completionIndex != -1 {
+		t.Errorf("Expected completionIndex to be reset to -1, got %d", m.completionIndex)
+	}
+}
