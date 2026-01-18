@@ -2,7 +2,14 @@
 
 A TUI file explorer built in Go with Vim keybinds and Git/Jujutsu status display.
 
-> **Note:** The project is called **bon3ai**, but the command is **`bon3`** 
+> **Note:** The project is called **bon3ai**, but the command is **`bon3`**
+
+## Why bon3?
+
+- **Drag & Drop** - Drop files directly into the terminal
+- **VCS integration** - Git and Jujutsu (jj) status display
+- **Image preview** - Kitty graphics protocol support
+- **Zero config** - Works out of the box
 
 ## Features
 
