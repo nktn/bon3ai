@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -622,36 +623,53 @@ func TestRefreshTreeAndVCS_CalledAfterPaste(t *testing.T) {
 		}
 	}()
 
-	// Set up clipboard with source file
-	model.clipboard.Copy([]string{srcFile})
-
-	// Navigate to destination directory
+	// Find destination directory
+	destIndex := -1
 	for i := 0; i < model.tree.Len(); i++ {
 		node := model.tree.GetNode(i)
 		if node != nil && node.Path == destDir {
+			destIndex = i
 			model.selected = i
 			break
 		}
 	}
+	if destIndex == -1 {
+		t.Fatal("Destination directory not found in tree")
+	}
 
-	// Record tree length before paste
-	treeLenBefore := model.tree.Len()
+	// Set up clipboard with source file
+	model.clipboard.Copy([]string{srcFile})
 
 	// Execute paste
 	model.paste()
 
-	// Tree should be refreshed (length may change due to new file)
-	// VCS should also be refreshed (we can't easily test VCS without git repo,
-	// but we verify that refreshTreeAndVCS was called by checking tree refresh)
-	if model.tree.Len() == treeLenBefore {
-		// The tree should have been refreshed and should now include the new file
-		// (if dest was expanded)
-	}
-
-	// Verify the file was copied
+	// Verify the file was copied on disk
 	copiedFile := filepath.Join(destDir, "source.txt")
 	if _, err := os.Stat(copiedFile); os.IsNotExist(err) {
 		t.Error("File should have been copied")
+	}
+
+	// After refresh, expand dest and verify new file appears in tree
+	// (Refresh resets expansion state, so we need to expand again)
+	for i := 0; i < model.tree.Len(); i++ {
+		node := model.tree.GetNode(i)
+		if node != nil && node.Path == destDir {
+			model.tree.Expand(i)
+			break
+		}
+	}
+
+	// Now verify the copied file appears in the tree
+	found := false
+	for i := 0; i < model.tree.Len(); i++ {
+		node := model.tree.GetNode(i)
+		if node != nil && node.Path == copiedFile {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Copied file should appear in tree after refresh and expand")
 	}
 }
 
@@ -672,13 +690,18 @@ func TestRefreshTreeAndVCS_CalledAfterDelete(t *testing.T) {
 		}
 	}()
 
-	// Navigate to the file
+	// Verify file exists in tree before delete
+	fileIndex := -1
 	for i := 0; i < model.tree.Len(); i++ {
 		node := model.tree.GetNode(i)
 		if node != nil && node.Path == testFile {
+			fileIndex = i
 			model.selected = i
 			break
 		}
+	}
+	if fileIndex == -1 {
+		t.Fatal("Test file not found in tree")
 	}
 
 	// Record tree length before delete
@@ -692,9 +715,12 @@ func TestRefreshTreeAndVCS_CalledAfterDelete(t *testing.T) {
 		t.Error("Tree should have fewer items after delete")
 	}
 
-	// VCS repo should have been refreshed (verify by checking vcsRepo is not nil)
-	if model.vcsRepo == nil {
-		t.Error("VCS repo should not be nil after refresh")
+	// Verify file no longer exists in tree
+	for i := 0; i < model.tree.Len(); i++ {
+		node := model.tree.GetNode(i)
+		if node != nil && node.Path == testFile && !node.IsGhost {
+			t.Error("Deleted file should not appear in tree (except as ghost)")
+		}
 	}
 }
 
@@ -730,15 +756,31 @@ func TestRefreshTreeAndVCS_CalledAfterRename(t *testing.T) {
 	// Execute rename
 	model.doRename()
 
-	// Verify the file was renamed
+	// Verify the file was renamed on disk
 	newFile := filepath.Join(tmpDir, "newname.txt")
 	if _, err := os.Stat(newFile); os.IsNotExist(err) {
-		t.Error("File should have been renamed")
+		t.Error("File should have been renamed on disk")
 	}
 
-	// VCS repo should have been refreshed
-	if model.vcsRepo == nil {
-		t.Error("VCS repo should not be nil after refresh")
+	// Verify old file no longer in tree and new file appears
+	oldFound := false
+	newFound := false
+	for i := 0; i < model.tree.Len(); i++ {
+		node := model.tree.GetNode(i)
+		if node != nil {
+			if node.Path == oldFile {
+				oldFound = true
+			}
+			if node.Path == newFile {
+				newFound = true
+			}
+		}
+	}
+	if oldFound {
+		t.Error("Old filename should not appear in tree after rename")
+	}
+	if !newFound {
+		t.Error("New filename should appear in tree after rename")
 	}
 }
 
@@ -770,10 +812,23 @@ func TestRefreshTreeAndVCS_CalledAfterNewFile(t *testing.T) {
 		t.Error("Tree should have more items after creating new file")
 	}
 
-	// Verify the file was created
+	// Verify the file was created on disk
 	newFile := filepath.Join(tmpDir, "newfile.txt")
 	if _, err := os.Stat(newFile); os.IsNotExist(err) {
-		t.Error("New file should have been created")
+		t.Error("New file should have been created on disk")
+	}
+
+	// Verify new file appears in tree
+	found := false
+	for i := 0; i < model.tree.Len(); i++ {
+		node := model.tree.GetNode(i)
+		if node != nil && node.Path == newFile {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("New file should appear in tree after creation")
 	}
 }
 
@@ -805,13 +860,121 @@ func TestRefreshTreeAndVCS_CalledAfterNewDir(t *testing.T) {
 		t.Error("Tree should have more items after creating new directory")
 	}
 
-	// Verify the directory was created
+	// Verify the directory was created on disk
 	newDir := filepath.Join(tmpDir, "newdir")
 	info, err := os.Stat(newDir)
 	if os.IsNotExist(err) {
-		t.Error("New directory should have been created")
+		t.Error("New directory should have been created on disk")
 	}
 	if !info.IsDir() {
 		t.Error("Created item should be a directory")
+	}
+
+	// Verify new directory appears in tree
+	found := false
+	for i := 0; i < model.tree.Len(); i++ {
+		node := model.tree.GetNode(i)
+		if node != nil && node.Path == newDir {
+			found = true
+			if !node.IsDir {
+				t.Error("New node should be marked as directory")
+			}
+			break
+		}
+	}
+	if !found {
+		t.Error("New directory should appear in tree after creation")
+	}
+}
+
+// TestVCSRefresh_WithGitRepo tests VCS status update after file operations in a git repo
+func TestVCSRefresh_WithGitRepo(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Initialize git repo
+	cmd := exec.Command("git", "init")
+	cmd.Dir = tmpDir
+	if err := cmd.Run(); err != nil {
+		t.Skip("git not available, skipping VCS test")
+	}
+
+	// Configure git user for commits
+	cmd = exec.Command("git", "config", "user.email", "test@test.com")
+	cmd.Dir = tmpDir
+	cmd.Run()
+	cmd = exec.Command("git", "config", "user.name", "Test")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	// Create and commit a file
+	testFile := filepath.Join(tmpDir, "tracked.txt")
+	os.WriteFile(testFile, []byte("content"), 0644)
+
+	cmd = exec.Command("git", "add", "tracked.txt")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	cmd = exec.Command("git", "commit", "-m", "initial")
+	cmd.Dir = tmpDir
+	cmd.Run()
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	// Verify VCS is detected
+	if model.vcsRepo.GetType() != VCSTypeGit {
+		t.Error("Should detect git repo")
+	}
+
+	// Create a new untracked file
+	model.inputBuffer = "untracked.txt"
+	model.selected = 0
+	model.doNewFile()
+
+	// After refresh, VCS should show untracked status
+	untrackedFile := filepath.Join(tmpDir, "untracked.txt")
+	status := model.vcsRepo.GetStatus(untrackedFile)
+	if status != VCSStatusUntracked {
+		t.Errorf("New file should be untracked, got status %v", status)
+	}
+
+	// Modify tracked file
+	os.WriteFile(testFile, []byte("modified content"), 0644)
+	model.refreshTreeAndVCS()
+
+	// After refresh, VCS should show modified status
+	status = model.vcsRepo.GetStatus(testFile)
+	if status != VCSStatusModified {
+		t.Errorf("Modified file should have modified status, got %v", status)
+	}
+
+	// Delete the tracked file
+	for i := 0; i < model.tree.Len(); i++ {
+		node := model.tree.GetNode(i)
+		if node != nil && node.Path == testFile {
+			model.selected = i
+			break
+		}
+	}
+	model.executeDelete()
+
+	// After refresh, VCS should report deleted file
+	deletedFiles := model.vcsRepo.GetDeletedFiles()
+	found := false
+	for _, f := range deletedFiles {
+		if strings.HasSuffix(f, "tracked.txt") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Error("Deleted tracked file should appear in VCS deleted files")
 	}
 }
