@@ -98,7 +98,7 @@ stateDiagram-v2
 5. 文字入力 → 候補をリアルタイム絞り込み
 
 **実装** (`completion.go`):
-- `getCompletions(input)`: マッチするエントリと共通プレフィックスを返す
+- `getCompletions(input, baseDir)`: マッチするエントリと共通プレフィックスを返す
 - `findCommonPrefix(paths)`: 共通プレフィックス計算
 - `collapseHomePath(path)`: `~`表示用に変換
 

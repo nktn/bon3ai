@@ -254,7 +254,7 @@ func (m Model) updateInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.inputBuffer = string(runes[:len(runes)-1])
 		}
 		// Refresh completions on input change (filter as you type)
-		if m.inputMode == ModeGoTo && len(m.completionCandidates) > 0 {
+		if m.inputMode == ModeGoTo {
 			m.refreshCompletions()
 		} else {
 			m.clearCompletions()
@@ -265,7 +265,7 @@ func (m Model) updateInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.inputBuffer += string(msg.Runes)
 		}
 		// Refresh completions on input change (filter as you type)
-		if m.inputMode == ModeGoTo && len(m.completionCandidates) > 0 {
+		if m.inputMode == ModeGoTo {
 			m.refreshCompletions()
 		} else {
 			m.clearCompletions()
