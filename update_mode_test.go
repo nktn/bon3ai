@@ -885,3 +885,90 @@ func TestInputMode_TypeAddsChar(t *testing.T) {
 		t.Errorf("Expected 'hell' after typing 'l', got %q", m.inputBuffer)
 	}
 }
+
+func TestInputMode_UTF8Input(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeSearch
+	model.inputBuffer = ""
+
+	// Type Japanese characters
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'テ', 'ス', 'ト'}}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.inputBuffer != "テスト" {
+		t.Errorf("Expected 'テスト' after typing Japanese, got %q", m.inputBuffer)
+	}
+}
+
+func TestInputMode_UTF8Backspace(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeSearch
+	model.inputBuffer = "テスト"
+
+	// Press Backspace - should delete one character, not one byte
+	msg := tea.KeyMsg{Type: tea.KeyBackspace}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.inputBuffer != "テス" {
+		t.Errorf("Expected 'テス' after backspace, got %q", m.inputBuffer)
+	}
+}
+
+func TestInputMode_MixedUTF8AndASCII(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeRename
+	model.inputBuffer = "ファイル"
+
+	// Add ASCII characters
+	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'_', '1'}}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.inputBuffer != "ファイル_1" {
+		t.Errorf("Expected 'ファイル_1', got %q", m.inputBuffer)
+	}
+
+	// Backspace should delete '1'
+	msg = tea.KeyMsg{Type: tea.KeyBackspace}
+	newModel, _ = m.Update(msg)
+	m = newModel.(Model)
+
+	if m.inputBuffer != "ファイル_" {
+		t.Errorf("Expected 'ファイル_' after backspace, got %q", m.inputBuffer)
+	}
+}
