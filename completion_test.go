@@ -27,7 +27,7 @@ func TestGetCompletions(t *testing.T) {
 	}
 
 	t.Run("empty input returns nothing", func(t *testing.T) {
-		candidates, prefix := getCompletions("")
+		candidates, prefix := getCompletions("", "")
 		if len(candidates) != 0 {
 			t.Errorf("expected no candidates for empty input, got %d", len(candidates))
 		}
@@ -38,7 +38,7 @@ func TestGetCompletions(t *testing.T) {
 
 	t.Run("prefix match returns matching entries", func(t *testing.T) {
 		input := filepath.Join(tmpDir, "Do")
-		candidates, _ := getCompletions(input)
+		candidates, _ := getCompletions(input, "")
 
 		if len(candidates) != 2 {
 			t.Errorf("expected 2 candidates (Documents, Downloads), got %d: %v", len(candidates), candidates)
@@ -54,7 +54,7 @@ func TestGetCompletions(t *testing.T) {
 
 	t.Run("single match returns one candidate", func(t *testing.T) {
 		input := filepath.Join(tmpDir, "Des")
-		candidates, prefix := getCompletions(input)
+		candidates, prefix := getCompletions(input, "")
 
 		if len(candidates) != 1 {
 			t.Errorf("expected 1 candidate (Desktop), got %d: %v", len(candidates), candidates)
@@ -68,7 +68,7 @@ func TestGetCompletions(t *testing.T) {
 
 	t.Run("directory trailing slash lists contents", func(t *testing.T) {
 		input := tmpDir + string(os.PathSeparator)
-		candidates, _ := getCompletions(input)
+		candidates, _ := getCompletions(input, "")
 
 		// Should list all non-hidden entries (3 dirs + 2 files)
 		if len(candidates) != 5 {
@@ -78,7 +78,7 @@ func TestGetCompletions(t *testing.T) {
 
 	t.Run("directories have trailing separator", func(t *testing.T) {
 		input := filepath.Join(tmpDir, "Doc")
-		candidates, _ := getCompletions(input)
+		candidates, _ := getCompletions(input, "")
 
 		if len(candidates) != 1 {
 			t.Fatalf("expected 1 candidate, got %d", len(candidates))
@@ -91,7 +91,7 @@ func TestGetCompletions(t *testing.T) {
 
 	t.Run("file candidates have no trailing separator", func(t *testing.T) {
 		input := filepath.Join(tmpDir, "file1")
-		candidates, _ := getCompletions(input)
+		candidates, _ := getCompletions(input, "")
 
 		if len(candidates) != 1 {
 			t.Fatalf("expected 1 candidate, got %d", len(candidates))
@@ -104,7 +104,7 @@ func TestGetCompletions(t *testing.T) {
 
 	t.Run("case insensitive matching", func(t *testing.T) {
 		input := filepath.Join(tmpDir, "do")
-		candidates, _ := getCompletions(input)
+		candidates, _ := getCompletions(input, "")
 
 		if len(candidates) != 2 {
 			t.Errorf("expected 2 candidates (case insensitive), got %d: %v", len(candidates), candidates)
@@ -113,7 +113,7 @@ func TestGetCompletions(t *testing.T) {
 
 	t.Run("nonexistent path returns nothing", func(t *testing.T) {
 		input := filepath.Join(tmpDir, "nonexistent", "path")
-		candidates, _ := getCompletions(input)
+		candidates, _ := getCompletions(input, "")
 
 		if len(candidates) != 0 {
 			t.Errorf("expected no candidates for nonexistent path, got %d", len(candidates))
@@ -134,7 +134,7 @@ func TestGetCompletionsHiddenFiles(t *testing.T) {
 
 	t.Run("hidden files excluded by default", func(t *testing.T) {
 		input := tmpDir + string(os.PathSeparator)
-		candidates, _ := getCompletions(input)
+		candidates, _ := getCompletions(input, "")
 
 		if len(candidates) != 1 {
 			t.Errorf("expected 1 candidate (visible only), got %d: %v", len(candidates), candidates)
@@ -143,10 +143,127 @@ func TestGetCompletionsHiddenFiles(t *testing.T) {
 
 	t.Run("hidden files included when prefix is dot", func(t *testing.T) {
 		input := filepath.Join(tmpDir, ".")
-		candidates, _ := getCompletions(input)
+		candidates, _ := getCompletions(input, "")
 
 		if len(candidates) != 1 {
 			t.Errorf("expected 1 candidate (.hidden), got %d: %v", len(candidates), candidates)
+		}
+	})
+}
+
+func TestGetCompletionsRelativePath(t *testing.T) {
+	// Create base directory with subdirectories
+	baseDir := t.TempDir()
+	subDir := filepath.Join(baseDir, "subdir")
+	if err := os.Mkdir(subDir, 0755); err != nil {
+		t.Fatalf("failed to create subdir: %v", err)
+	}
+
+	// Create files in subdir
+	for _, name := range []string{"alpha.txt", "beta.txt"} {
+		if err := os.WriteFile(filepath.Join(subDir, name), []byte{}, 0644); err != nil {
+			t.Fatalf("failed to create file: %v", err)
+		}
+	}
+
+	t.Run("relative path resolved against baseDir", func(t *testing.T) {
+		// "subdir/" should be resolved relative to baseDir
+		candidates, _ := getCompletions("subdir/", baseDir)
+
+		if len(candidates) != 2 {
+			t.Errorf("expected 2 candidates, got %d: %v", len(candidates), candidates)
+		}
+
+		// Verify candidates are absolute paths under subdir
+		for _, c := range candidates {
+			if !strings.HasPrefix(c, subDir) {
+				t.Errorf("candidate %q should be under %q", c, subDir)
+			}
+		}
+	})
+
+	t.Run("relative prefix match with baseDir", func(t *testing.T) {
+		candidates, _ := getCompletions("subdir/al", baseDir)
+
+		if len(candidates) != 1 {
+			t.Errorf("expected 1 candidate (alpha.txt), got %d: %v", len(candidates), candidates)
+		}
+
+		expected := filepath.Join(subDir, "alpha.txt")
+		if len(candidates) == 1 && candidates[0] != expected {
+			t.Errorf("expected %q, got %q", expected, candidates[0])
+		}
+	})
+
+	t.Run("absolute path ignores baseDir", func(t *testing.T) {
+		// Absolute path should not use baseDir
+		input := subDir + string(os.PathSeparator)
+		candidates, _ := getCompletions(input, "/some/other/path")
+
+		if len(candidates) != 2 {
+			t.Errorf("expected 2 candidates for absolute path, got %d: %v", len(candidates), candidates)
+		}
+	})
+
+	t.Run("empty baseDir uses relative to cwd", func(t *testing.T) {
+		// With empty baseDir, relative paths are relative to cwd
+		// Create a file in cwd to test (this is tricky, so we use absolute path test instead)
+		candidates, _ := getCompletions("nonexistent_relative_path", "")
+
+		if len(candidates) != 0 {
+			t.Errorf("expected no candidates for nonexistent relative path without baseDir, got %d", len(candidates))
+		}
+	})
+}
+
+func TestGetCompletionsTilde(t *testing.T) {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("cannot get home directory")
+	}
+
+	t.Run("tilde alone lists home directory", func(t *testing.T) {
+		candidates, _ := getCompletions("~", "")
+
+		// Should return entries from home directory
+		if len(candidates) == 0 {
+			t.Error("expected candidates for ~ (home directory)")
+		}
+
+		// All candidates should be under home directory
+		for _, c := range candidates {
+			if !strings.HasPrefix(c, home) {
+				t.Errorf("candidate %q should be under home %q", c, home)
+			}
+		}
+	})
+
+	t.Run("tilde with slash lists home directory", func(t *testing.T) {
+		candidates, _ := getCompletions("~/", "")
+
+		// Should return entries from home directory
+		if len(candidates) == 0 {
+			t.Error("expected candidates for ~/ (home directory)")
+		}
+
+		// All candidates should be under home directory
+		for _, c := range candidates {
+			if !strings.HasPrefix(c, home) {
+				t.Errorf("candidate %q should be under home %q", c, home)
+			}
+		}
+	})
+
+	t.Run("tilde with prefix matches in home", func(t *testing.T) {
+		// This test assumes there's at least something starting with "D" in home
+		// (like Desktop, Documents, Downloads on most systems)
+		candidates, _ := getCompletions("~/D", "")
+
+		// Candidates should be under home directory
+		for _, c := range candidates {
+			if !strings.HasPrefix(c, home) {
+				t.Errorf("candidate %q should be under home %q", c, home)
+			}
 		}
 	})
 }

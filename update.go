@@ -1173,8 +1173,8 @@ func (m *Model) handleTabCompletion(reverse bool) {
 		return
 	}
 
-	// Generate new completions
-	candidates, commonPrefix := getCompletions(m.inputBuffer)
+	// Generate new completions (relative to tree root)
+	candidates, commonPrefix := getCompletions(m.inputBuffer, m.tree.Root.Path)
 
 	if len(candidates) == 0 {
 		// No matches

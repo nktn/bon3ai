@@ -8,9 +8,9 @@ import (
 )
 
 // getCompletions returns matching file/directory names and the common prefix.
-// Input is the current path being typed. Returns (candidates, commonPrefix).
-// Candidates include trailing "/" for directories.
-func getCompletions(input string) ([]string, string) {
+// Input is the current path being typed. baseDir is used for relative path resolution.
+// Returns (candidates, commonPrefix). Candidates include trailing "/" for directories.
+func getCompletions(input, baseDir string) ([]string, string) {
 	if input == "" {
 		return nil, ""
 	}
@@ -22,7 +22,23 @@ func getCompletions(input string) ([]string, string) {
 		if err != nil {
 			return nil, ""
 		}
-		path = filepath.Join(home, path[1:])
+		// Special case: "~" or "~/" should list home directory contents
+		rest := path[1:]
+		if rest == "" || rest == string(os.PathSeparator) {
+			path = home + string(os.PathSeparator)
+		} else {
+			path = filepath.Join(home, rest)
+		}
+	}
+
+	// Resolve relative paths against baseDir
+	if !filepath.IsAbs(path) && baseDir != "" {
+		// Preserve trailing separator (filepath.Join removes it)
+		hadTrailingSep := strings.HasSuffix(path, string(os.PathSeparator))
+		path = filepath.Join(baseDir, path)
+		if hadTrailingSep {
+			path += string(os.PathSeparator)
+		}
 	}
 
 	// Split into directory and prefix parts
