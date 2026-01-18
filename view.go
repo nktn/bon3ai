@@ -301,7 +301,41 @@ func (m Model) renderInputPopup() string {
 		title = "Go to"
 	}
 
-	content := fmt.Sprintf(" %s: %s█", title, m.inputBuffer)
+	// Display input with cursor
+	displayBuffer := collapseHomePath(m.inputBuffer)
+	content := fmt.Sprintf(" %s: %s█", title, displayBuffer)
+
+	// Add completion candidates if available
+	if m.inputMode == ModeGoTo && len(m.completionCandidates) > 0 {
+		candidateStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+		selectedCandidateStyle := lipgloss.NewStyle().
+			Background(lipgloss.Color("238")).
+			Foreground(lipgloss.Color("252"))
+
+		// Limit displayed candidates
+		maxCandidates := 5
+		candidates := m.completionCandidates
+		if len(candidates) > maxCandidates {
+			candidates = candidates[:maxCandidates]
+		}
+
+		content += "\n"
+		for i, candidate := range candidates {
+			displayCandidate := collapseHomePath(candidate)
+			if i == m.completionIndex {
+				content += selectedCandidateStyle.Render(" "+displayCandidate) + "\n"
+			} else {
+				content += candidateStyle.Render(" "+displayCandidate) + "\n"
+			}
+		}
+
+		// Show "more" indicator
+		if len(m.completionCandidates) > maxCandidates {
+			moreStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+			content += moreStyle.Render(fmt.Sprintf(" ... +%d more", len(m.completionCandidates)-maxCandidates))
+		}
+	}
+
 	return inputStyle.Render(content)
 }
 

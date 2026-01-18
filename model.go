@@ -168,6 +168,10 @@ type Model struct {
 
 	// Directory navigation
 	gPending bool // Waiting for second key after `g`
+
+	// Tab completion (ModeGoTo)
+	completionCandidates []string // Completion candidates
+	completionIndex      int      // Selected candidate (-1 = none)
 }
 
 // NewModel creates a new Model
@@ -186,20 +190,21 @@ func NewModel(path string) (Model, error) {
 	watcher, _ := NewWatcher(tree.Root.Path)
 
 	return Model{
-		tree:           tree,
-		vcsRepo:        vcsRepo,
-		selected:       0,
-		height:         20,
-		width:          80,
-		showHidden:     false,
-		message:        "?: help",
-		marked:         make(map[string]bool),
-		inputMode:      ModeNormal,
-		lastClickTime:  time.Now(),
-		lastClickIndex: -1,
-		lastCharTime:   time.Now(),
-		watcher:        watcher,
-		watcherEnabled: watcher != nil,
+		tree:             tree,
+		vcsRepo:          vcsRepo,
+		selected:         0,
+		height:           20,
+		width:            80,
+		showHidden:       false,
+		message:          "?: help",
+		marked:           make(map[string]bool),
+		inputMode:        ModeNormal,
+		lastClickTime:    time.Now(),
+		lastClickIndex:   -1,
+		lastCharTime:     time.Now(),
+		watcher:          watcher,
+		watcherEnabled:   watcher != nil,
+		completionIndex:  -1,
 	}, nil
 }
 

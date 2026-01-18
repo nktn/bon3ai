@@ -204,21 +204,45 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) updateInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
+	key := msg.String()
+
+	// Handle Tab completion for ModeGoTo
+	if m.inputMode == ModeGoTo {
+		switch key {
+		case "tab":
+			m.handleTabCompletion(false)
+			return m, nil
+		case "shift+tab":
+			m.handleTabCompletion(true)
+			return m, nil
+		}
+	}
+
+	switch key {
 	case "enter":
+		// If candidate is selected, apply it first
+		if m.inputMode == ModeGoTo && m.completionIndex >= 0 && m.completionIndex < len(m.completionCandidates) {
+			m.inputBuffer = m.completionCandidates[m.completionIndex]
+		}
+		m.clearCompletions()
 		m.confirmInput()
 	case "esc":
+		m.clearCompletions()
 		m.cancelInput()
 	case "backspace":
 		if len(m.inputBuffer) > 0 {
 			runes := []rune(m.inputBuffer)
 			m.inputBuffer = string(runes[:len(runes)-1])
 		}
+		// Clear completions on input change
+		m.clearCompletions()
 	default:
 		// Accept non-ASCII characters (e.g., Japanese)
 		if len(msg.Runes) > 0 {
 			m.inputBuffer += string(msg.Runes)
 		}
+		// Clear completions on input change
+		m.clearCompletions()
 	}
 
 	m.adjustScroll()
@@ -1125,6 +1149,58 @@ func (m *Model) copyFilename() {
 func (m *Model) startGoTo() {
 	m.inputBuffer = ""
 	m.inputMode = ModeGoTo
+	m.clearCompletions()
+}
+
+// Tab completion
+
+func (m *Model) handleTabCompletion(reverse bool) {
+	// If we already have candidates, cycle through them
+	if len(m.completionCandidates) > 0 {
+		if reverse {
+			m.completionIndex--
+			if m.completionIndex < 0 {
+				m.completionIndex = len(m.completionCandidates) - 1
+			}
+		} else {
+			m.completionIndex++
+			if m.completionIndex >= len(m.completionCandidates) {
+				m.completionIndex = 0
+			}
+		}
+		// Update input buffer with selected candidate
+		m.inputBuffer = m.completionCandidates[m.completionIndex]
+		return
+	}
+
+	// Generate new completions (relative to tree root)
+	candidates, commonPrefix := getCompletions(m.inputBuffer, m.tree.Root.Path)
+
+	if len(candidates) == 0 {
+		// No matches
+		return
+	}
+
+	if len(candidates) == 1 {
+		// Single match - auto-complete
+		m.inputBuffer = candidates[0]
+		m.clearCompletions()
+		return
+	}
+
+	// Multiple matches - fill common prefix and show candidates
+	if commonPrefix != "" && len(commonPrefix) > len(m.inputBuffer) {
+		m.inputBuffer = commonPrefix
+	}
+
+	// Store candidates for display and cycling
+	m.completionCandidates = candidates
+	m.completionIndex = -1 // No selection yet
+}
+
+func (m *Model) clearCompletions() {
+	m.completionCandidates = nil
+	m.completionIndex = -1
 }
 
 func (m *Model) doGoTo() {
