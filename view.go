@@ -333,9 +333,10 @@ func (m Model) renderInputPopup() string {
 		content += "\n"
 		for i, candidate := range candidates {
 			displayCandidate := collapseHomePath(candidate)
-			// Truncate long paths
-			if len(displayCandidate) > maxContentWidth-2 {
-				displayCandidate = "…" + displayCandidate[len(displayCandidate)-(maxContentWidth-3):]
+			// Truncate long paths (keep the end, which contains the filename)
+			candidateWidth := lipgloss.Width(displayCandidate)
+			if candidateWidth > maxContentWidth-2 {
+				displayCandidate = "…" + ansi.TruncateLeft(displayCandidate, maxContentWidth-3, "")
 			}
 			if i == m.completionIndex {
 				content += selectedCandidateStyle.Render(" "+displayCandidate) + "\n"
