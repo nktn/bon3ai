@@ -57,6 +57,36 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 
 ## Additional Documentation
 
+### Workflow
+- `.claude/WORKFLOW.md`: 開発ワークフローガイド
+
+### Rules
+- `.claude/rules/agents.md`: Agent usage guide
 - `.claude/rules/architecture.md`: State machine and architecture details
+- `.claude/rules/coding-style.md`: Go coding style guide
 - `.claude/rules/development.md`: Development guidelines
-- `.claude/skills/codex/SKILL.md`: Codex CLI integration
+- `.claude/rules/git-workflow.md`: Git commit and PR workflow
+- `.claude/rules/performance.md`: Performance guidelines
+- `.claude/rules/security.md`: Security guidelines
+- `.claude/rules/testing.md`: Testing guidelines
+
+### Skills & Commands
+- `.claude/skills/dev/SKILL.md`: **Orchestrated development (`/dev`)** ← 推奨
+- `.claude/skills/codex/SKILL.md`: Codex CLI integration (`/codex`)
+- `.claude/skills/tdd/SKILL.md`: TDD workflow (`/tdd`)
+- `.claude/commands/dev.md`: Multi-agent orchestration (`/dev`)
+- `.claude/commands/plan.md`: Feature planning (`/plan`)
+- `.claude/commands/tdd.md`: Test-driven development (`/tdd`)
+- `.claude/commands/build-fix.md`: Build error fix (`/build-fix`)
+- `.claude/commands/refactor-clean.md`: Refactor & cleanup (`/refactor-clean`)
+- `.claude/commands/test-coverage.md`: Coverage analysis (`/test-coverage`)
+- `.claude/commands/update-docs.md`: Documentation sync (`/update-docs`)
+- `.claude/commands/update-codemaps.md`: Code map update (`/update-codemaps`)
+
+### Agents
+- `.claude/agents/architect.md`: アーキテクチャ設計・分析
+- `.claude/agents/build-fixer.md`: ビルドエラー修正
+- `.claude/agents/doc-updater.md`: ドキュメント同期・更新
+- `.claude/agents/planner.md`: 実装計画の作成
+- `.claude/agents/refactor-cleaner.md`: リファクタリング・整理
+- `.claude/agents/tdd-guide.md`: テスト駆動開発ガイド
