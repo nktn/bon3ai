@@ -304,16 +304,21 @@ func (m Model) renderInputPopup() string {
 	// Calculate max content width (terminal width - border - padding)
 	maxContentWidth := m.width - 6
 	if maxContentWidth < 20 {
-		maxContentWidth = 20
+		// Don't exceed actual terminal width on small screens
+		if m.width > 4 {
+			maxContentWidth = m.width - 4
+		} else {
+			maxContentWidth = 20
+		}
 	}
 
 	// Display input with cursor
 	displayBuffer := collapseHomePath(m.inputBuffer)
 	content := fmt.Sprintf(" %s: %s█", title, displayBuffer)
 
-	// Truncate input line if too long
+	// Truncate input line if too long (use ansi.Truncate for proper CJK width handling)
 	if lipgloss.Width(content) > maxContentWidth {
-		content = truncateString(content, maxContentWidth-1) + "…"
+		content = ansi.Truncate(content, maxContentWidth-1, "") + "…"
 	}
 
 	// Add completion candidates if available
@@ -679,11 +684,3 @@ func formatFileSize(bytes int64) string {
 	}
 }
 
-// truncateString truncates a string to maxWidth runes
-func truncateString(s string, maxWidth int) string {
-	runes := []rune(s)
-	if len(runes) <= maxWidth {
-		return s
-	}
-	return string(runes[:maxWidth])
-}
