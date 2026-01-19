@@ -302,14 +302,10 @@ func (m Model) renderInputPopup() string {
 	}
 
 	// Calculate max content width (terminal width - border - padding)
-	maxContentWidth := m.width - 6
+	// Border takes 2 chars (left + right), padding takes 2 chars (1 each side)
+	maxContentWidth := m.width - 4
 	if maxContentWidth < 20 {
-		// Don't exceed actual terminal width on small screens
-		if m.width > 4 {
-			maxContentWidth = m.width - 4
-		} else {
-			maxContentWidth = 20
-		}
+		maxContentWidth = 20
 	}
 
 	// Display input with cursor
