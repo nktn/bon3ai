@@ -62,3 +62,45 @@ go build . 2>&1
 - **1つずつ修正**: 一度に複数の修正をしない
 - **最小限の変更**: リファクタリングしない
 - **検証**: 各修正後に再ビルド
+
+## bon3ai でよくあるエラー
+
+### tea.Model インターフェース
+
+```go
+// エラー: Model does not implement tea.Model
+// 原因: Update または View のシグネチャが違う
+
+// 正しいシグネチャ
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd)
+func (m Model) View() string
+func (m Model) Init() tea.Cmd
+```
+
+### lipgloss スタイル
+
+```go
+// エラー: cannot use style (type Style) as type string
+// 修正: Render() を呼ぶ
+style.Render(content)
+```
+
+### InputMode 追加時
+
+```go
+// エラー: undefined: ModeNewMode
+// 修正: model.go に定義を追加
+const (
+    ModeNormal InputMode = iota
+    // ...
+    ModeNewMode  // 追加
+)
+```
+
+### ファイル操作
+
+```go
+// エラー: undefined: os.ReadDir
+// 修正: Go 1.16+ の標準ライブラリ
+entries, err := os.ReadDir(path)
+```

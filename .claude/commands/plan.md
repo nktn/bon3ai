@@ -50,10 +50,45 @@ Plan the implementation of a new feature or change.
 - Always include testing strategy
 - List unresolved questions at the end
 
+## bon3ai での典型的な変更パターン
+
+### 新しい InputMode 追加
+
+```markdown
+### Affected Files
+- `model.go`: InputMode 定義追加
+- `update.go`: キーハンドリング追加
+- `view.go`: レンダリング追加
+
+### Follow-up
+- `.claude/rules/architecture.md`: 状態遷移図更新
+- `README.md`: キーバインド表更新
+```
+
+### 新しいキーバインド追加
+
+```markdown
+### Affected Files
+- `update.go`: case 文追加
+- `*_test.go`: テスト追加
+
+### Follow-up
+- `README.md`: キーバインド表更新
+```
+
+### VCS 機能追加
+
+```markdown
+### Affected Files
+- `vcs.go`: VCSRepo インターフェース拡張
+- `gitstatus.go`: Git 実装
+- `jjstatus.go`: JJ 実装
+```
+
 ## Usage
 
 ```
-/plan Add dark mode support
-/plan Implement file search feature
-/plan Refactor VCS integration
+/plan Add bookmark feature
+/plan Implement fuzzy file search
+/plan Add split pane view
 ```

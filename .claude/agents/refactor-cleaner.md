@@ -60,6 +60,52 @@ func handleError(err error) error {
 - [ ] 命名は明確か
 - [ ] テストは通るか
 
+## bon3ai 固有のパターン
+
+### Update 関数の分割
+
+```go
+// Before: 大きな Update 関数
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+    // 500行の switch 文...
+}
+
+// After: モード別に分割
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+    switch m.inputMode {
+    case ModeNormal:
+        return m.updateNormal(msg)
+    case ModeSearch:
+        return m.updateSearch(msg)
+    }
+}
+```
+
+### View 関数の分割
+
+```go
+// Before: 大きな View 関数
+func (m Model) View() string {
+    // 300行のレンダリング...
+}
+
+// After: コンポーネント別に分割
+func (m Model) View() string {
+    return lipgloss.JoinVertical(
+        m.renderHeader(),
+        m.renderTree(),
+        m.renderStatusBar(),
+    )
+}
+```
+
+### ヘルパー関数の抽出
+
+```go
+// completion.go, fileops.go など
+// 単一責任の小さなファイルに分割
+```
+
 ## 制約
 
 - **動作を変えない**: 外部から見た振る舞いは同じ
