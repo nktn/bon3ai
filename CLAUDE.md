@@ -67,3 +67,8 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 ### Skills & Commands
 - `.claude/skills/codex/SKILL.md`: Codex CLI integration (`/codex`)
 - `.claude/commands/plan.md`: Feature planning (`/plan`)
+
+### Agents
+- `.claude/agents/architect.md`: アーキテクチャ設計・分析
+- `.claude/agents/build-fixer.md`: ビルドエラー修正
+- `.claude/agents/refactor-cleaner.md`: リファクタリング・整理
