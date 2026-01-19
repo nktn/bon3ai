@@ -57,6 +57,13 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 
 ## Additional Documentation
 
+### Rules
 - `.claude/rules/architecture.md`: State machine and architecture details
 - `.claude/rules/development.md`: Development guidelines
-- `.claude/skills/codex/SKILL.md`: Codex CLI integration
+- `.claude/rules/coding-style.md`: Go coding style guide
+- `.claude/rules/git-workflow.md`: Git commit and PR workflow
+- `.claude/rules/testing.md`: Testing guidelines
+
+### Skills & Commands
+- `.claude/skills/codex/SKILL.md`: Codex CLI integration (`/codex`)
+- `.claude/commands/plan.md`: Feature planning (`/plan`)
