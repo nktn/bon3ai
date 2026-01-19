@@ -368,24 +368,28 @@ func (m Model) renderInputPopup() string {
 			content += scrollStyle.Render(fmt.Sprintf(" ↑ %d more", startIdx)) + "\n"
 		}
 
-		// Truncate width for display (keep some minimum visible)
-		truncateWidth := maxContentWidth - 4
-		if truncateWidth < 10 {
-			truncateWidth = 10
+		// Width for display (keep some minimum visible)
+		displayWidth := maxContentWidth - 4
+		if displayWidth < 10 {
+			displayWidth = 10
 		}
 
 		for i := startIdx; i < endIdx; i++ {
 			candidate := m.completionCandidates[i]
 			displayCandidate := collapseHomePath(candidate)
-			// Truncate long paths (keep the end, which contains the filename)
-			candidateWidth := lipgloss.Width(displayCandidate)
-			if candidateWidth > truncateWidth {
-				displayCandidate = "…" + ansi.TruncateLeft(displayCandidate, truncateWidth-1, "")
-			}
-			if i == m.completionIndex {
-				content += selectedCandidateStyle.Render(" "+displayCandidate) + "\n"
-			} else {
-				content += candidateStyle.Render(" "+displayCandidate) + "\n"
+
+			// Wrap long paths into multiple lines instead of truncating
+			lines := wrapText(displayCandidate, displayWidth)
+			for lineIdx, line := range lines {
+				prefix := " "
+				if lineIdx > 0 {
+					prefix = "  " // Indent continuation lines
+				}
+				if i == m.completionIndex {
+					content += selectedCandidateStyle.Render(prefix+line) + "\n"
+				} else {
+					content += candidateStyle.Render(prefix+line) + "\n"
+				}
 			}
 		}
 
@@ -682,5 +686,46 @@ func formatFileSize(bytes int64) string {
 	default:
 		return fmt.Sprintf("%dB", bytes)
 	}
+}
+
+// wrapText wraps text into multiple lines based on display width
+func wrapText(text string, maxWidth int) []string {
+	if maxWidth <= 0 {
+		return []string{text}
+	}
+
+	textWidth := lipgloss.Width(text)
+	if textWidth <= maxWidth {
+		return []string{text}
+	}
+
+	var lines []string
+	runes := []rune(text)
+	start := 0
+
+	for start < len(runes) {
+		// Find how many runes fit in maxWidth
+		end := start
+		currentWidth := 0
+
+		for end < len(runes) {
+			runeWidth := lipgloss.Width(string(runes[end]))
+			if currentWidth+runeWidth > maxWidth {
+				break
+			}
+			currentWidth += runeWidth
+			end++
+		}
+
+		// Ensure we make progress (at least one rune per line)
+		if end == start && start < len(runes) {
+			end = start + 1
+		}
+
+		lines = append(lines, string(runes[start:end]))
+		start = end
+	}
+
+	return lines
 }
 
