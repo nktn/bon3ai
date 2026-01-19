@@ -70,6 +70,10 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 - `.claude/commands/plan.md`: Feature planning (`/plan`)
 - `.claude/commands/tdd.md`: Test-driven development (`/tdd`)
 - `.claude/commands/build-fix.md`: Build error fix (`/build-fix`)
+- `.claude/commands/refactor-clean.md`: Refactor & cleanup (`/refactor-clean`)
+- `.claude/commands/test-coverage.md`: Coverage analysis (`/test-coverage`)
+- `.claude/commands/update-docs.md`: Documentation sync (`/update-docs`)
+- `.claude/commands/update-codemaps.md`: Code map update (`/update-codemaps`)
 
 ### Agents
 - `.claude/agents/architect.md`: アーキテクチャ設計・分析
