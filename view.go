@@ -398,7 +398,7 @@ func (m Model) renderInputPopup() string {
 	// Add hint for ModeGoTo
 	if m.inputMode == ModeGoTo {
 		hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-		content += "\n" + hintStyle.Render(" Tab:complete Enter:open Esc:close")
+		content += "\n" + hintStyle.Render(" Tab:next Enter:open Esc:close")
 	}
 
 	// Apply width constraint to the popup
