@@ -38,3 +38,41 @@ codex exec --full-auto --sandbox read-only --cd /path/to/project "認証処理�
 2. 対象プロジェクトのディレクトリを特定する
 3. 上記コマンド形式でCodexを実行
 4. 結果をユーザーに報告
+5. **PRが存在する場合**: レビュー結果をPRコメントに追記
+
+## PRコメント追記
+
+レビュー完了後、オープンなPRがある場合は自動的にコメントを追記する。
+
+### コメント形式
+
+```markdown
+## Codex Review
+
+### Findings
+- **高**: <重大な問題>
+- **中**: <中程度の問題>
+- **低**: <軽微な問題>
+
+### Suggestions
+<改善提案>
+
+---
+🤖 Reviewed by Codex CLI
+```
+
+### 実行コマンド
+
+```bash
+# 現在のブランチのPR番号を取得
+gh pr view --json number -q .number
+
+# PRにコメント追記
+gh pr comment <PR番号> --body "<レビュー結果>"
+```
+
+### 条件
+
+- PRがオープン状態であること
+- レビューで指摘事項がある場合のみコメント追記
+- 指摘なしの場合は「問題なし」の簡潔なコメント

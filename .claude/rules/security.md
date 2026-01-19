@@ -22,13 +22,29 @@
 ### パストラバーサル防止
 
 ```go
-// 悪い例
+// 悪い例: HasPrefixだけでは /tmp/foo と /tmp/foobar を誤判定
 path := filepath.Join(baseDir, userInput)
-
-// 良い例
-path := filepath.Join(baseDir, userInput)
-if !strings.HasPrefix(filepath.Clean(path), filepath.Clean(baseDir)) {
+if !strings.HasPrefix(path, baseDir) { // NG: 境界チェック不足
     return errors.New("invalid path")
+}
+
+// 良い例1: filepath.Relで相対パスを検証
+func isValidPath(baseDir, userInput string) bool {
+    path := filepath.Join(baseDir, userInput)
+    cleanPath := filepath.Clean(path)
+    rel, err := filepath.Rel(baseDir, cleanPath)
+    if err != nil {
+        return false
+    }
+    // ".."で始まる場合はbaseDir外へのアクセス
+    return !strings.HasPrefix(rel, "..")
+}
+
+// 良い例2: セパレータ付きで境界チェック
+func isValidPath2(baseDir, userInput string) bool {
+    path := filepath.Clean(filepath.Join(baseDir, userInput))
+    base := filepath.Clean(baseDir) + string(os.PathSeparator)
+    return path == filepath.Clean(baseDir) || strings.HasPrefix(path, base)
 }
 ```
 

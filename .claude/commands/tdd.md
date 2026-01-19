@@ -16,53 +16,21 @@ TDD サイクルで機能を実装する。
 /tdd Fix completion not working with special characters
 ```
 
-## プロセス
+## サイクル
 
-### 1. RED: テストを書く
-
-```bash
-# 失敗するテストを作成
-go test -v -run TestNewFeature
-# --- FAIL
+```
+RED → GREEN → REFACTOR → (繰り返し)
 ```
 
-### 2. GREEN: 実装する
+1. **RED**: 失敗するテストを書く
+2. **GREEN**: 最小限のコードでテストを通す
+3. **REFACTOR**: テストが通る状態でコードを改善
 
-```bash
-# 最小限のコードでテストを通す
-go test -v -run TestNewFeature
-# --- PASS
-```
+## 詳細
 
-### 3. REFACTOR: 改善する
+詳細なガイドラインは `agents/tdd-guide.md` を参照。
 
-```bash
-# 全テストが通ることを確認しながらリファクタリング
-go test ./...
-```
-
-## 出力フォーマット
-
-```markdown
-## TDD: <機能名>
-
-### Test Cases
-1. <テストケース1>
-2. <テストケース2>
-3. <エッジケース>
-
-### RED Phase
-- File: `xxx_test.go`
-- Test: `TestXxx`
-
-### GREEN Phase
-- File: `xxx.go`
-- Implementation: <簡潔な説明>
-
-### REFACTOR Phase
-- <改善点>
-
-### Verification
-- [ ] All tests pass
-- [ ] No regression
-```
+- テストパターン
+- bon3ai 固有の例（Model, 状態遷移, ファイルシステム）
+- チェックリスト
+- アンチパターン

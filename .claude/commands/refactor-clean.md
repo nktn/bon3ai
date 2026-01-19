@@ -15,15 +15,29 @@
 ### 不要コード検出
 
 ```bash
-# 未使用の変数・関数
+# 未使用の変数・関数（標準ツール）
 go vet ./...
 
-# 未使用の import
+# 未使用の import（要インストール）
 goimports -l .
 
-# 静的解析
+# 静的解析（要インストール）
 staticcheck ./...
 ```
+
+### ツールのインストール
+
+```bash
+# goimports
+go install golang.org/x/tools/cmd/goimports@latest
+
+# staticcheck
+go install honnef.co/go/tools/cmd/staticcheck@latest
+```
+
+**未インストール時の代替**:
+- `goimports` → `go fmt` + 手動で import 整理
+- `staticcheck` → `go vet` のみで続行（カバレッジ低下を許容）
 
 ### コード品質
 

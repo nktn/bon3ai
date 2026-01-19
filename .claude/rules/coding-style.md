@@ -6,6 +6,9 @@
 2. **Idiomatic Go**: Follow Go conventions and `gofmt` standards.
 3. **Small Functions**: Keep functions under 50 lines. Extract if longer.
 4. **Small Files**: Target 200-400 lines per file, max 800 lines.
+   - **新規ファイル**: 800行上限を厳守
+   - **既存ファイル**: 段階的に改善（既存の `update.go`, `view.go` 等は例外）
+   - **追加時**: 新機能追加で800行を超える場合は分割を検討
 
 ## Naming Conventions
 

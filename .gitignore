@@ -1,6 +1,7 @@
 # Build artifacts
 bin/
 bon3
+bon3ai
 
 # Binaries for programs and plugins
 *.exe

@@ -52,9 +52,10 @@
 
 ### InputMode 追加時
 1. `planner` で計画
-2. `tdd-guide` でテスト作成
-3. 実装
-4. `doc-updater` で architecture.md 更新
+2. `architect` でアーキテクチャ影響分析
+3. `tdd-guide` でテスト作成
+4. 実装
+5. `doc-updater` で architecture.md 更新
 
 ### 新しいキーバインド追加時
 1. `tdd-guide` でテスト作成
