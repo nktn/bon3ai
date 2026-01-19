@@ -58,10 +58,13 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 ## Additional Documentation
 
 ### Rules
+- `.claude/rules/agents.md`: Agent usage guide
 - `.claude/rules/architecture.md`: State machine and architecture details
-- `.claude/rules/development.md`: Development guidelines
 - `.claude/rules/coding-style.md`: Go coding style guide
+- `.claude/rules/development.md`: Development guidelines
 - `.claude/rules/git-workflow.md`: Git commit and PR workflow
+- `.claude/rules/performance.md`: Performance guidelines
+- `.claude/rules/security.md`: Security guidelines
 - `.claude/rules/testing.md`: Testing guidelines
 
 ### Skills & Commands
