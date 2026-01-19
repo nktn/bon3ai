@@ -71,8 +71,10 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 - `.claude/rules/testing.md`: Testing guidelines
 
 ### Skills & Commands
+- `.claude/skills/dev/SKILL.md`: **Orchestrated development (`/dev`)** ← 推奨
 - `.claude/skills/codex/SKILL.md`: Codex CLI integration (`/codex`)
 - `.claude/skills/tdd/SKILL.md`: TDD workflow (`/tdd`)
+- `.claude/commands/dev.md`: Multi-agent orchestration (`/dev`)
 - `.claude/commands/plan.md`: Feature planning (`/plan`)
 - `.claude/commands/tdd.md`: Test-driven development (`/tdd`)
 - `.claude/commands/build-fix.md`: Build error fix (`/build-fix`)

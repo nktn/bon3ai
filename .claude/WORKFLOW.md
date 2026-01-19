@@ -2,6 +2,16 @@
 
 Claude Code を活用した bon3ai 開発ワークフロー。
 
+## TL;DR - 最速の開発方法
+
+```bash
+/dev Add <機能の説明>
+```
+
+これだけで複数エージェントが並列で動き、計画→テスト→実装→レビュー→ドキュメントまで自動連携します。
+
+---
+
 ## 基本サイクル
 
 ```
@@ -185,6 +195,60 @@ go test -bench . -benchmem
 
 # Step 5: レビュー
 /codex パフォーマンス改善をレビューして
+```
+
+---
+
+## 自動オーケストレーション (/dev)
+
+### 並列エージェント連携
+
+```
+/dev Add bookmark feature
+
+        ┌─────────────┐
+        │   /dev      │
+        └──────┬──────┘
+               │
+    ┌──────────┼──────────┐
+    │          │          │
+    ▼          ▼          ▼
+┌────────┐ ┌────────┐ ┌────────┐
+│planner │ │architect│ │tdd-guide│  ← 並列実行
+└────┬───┘ └────┬───┘ └────┬───┘
+    │          │          │
+    └──────────┼──────────┘
+               │
+               ▼
+        ┌─────────────┐
+        │  結果統合    │
+        └──────┬──────┘
+               │
+    ┌──────────┼──────────┐
+    │          │          │
+    ▼          ▼          ▼
+  テスト作成   実装    ドキュメント  ← 順次実行
+```
+
+### モード別の並列構成
+
+| モード | 並列エージェント |
+|--------|------------------|
+| `--mode=feature` | planner + architect + tdd-guide |
+| `--mode=fix` | tdd-guide + build-fixer |
+| `--mode=refactor` | architect + refactor-cleaner + coverage |
+
+### 使用例
+
+```bash
+# 新機能（デフォルト）
+/dev Add split pane view
+
+# バグ修正
+/dev --mode=fix Fix completion not working with symlinks
+
+# リファクタリング
+/dev --mode=refactor Clean up update.go
 ```
 
 ---
