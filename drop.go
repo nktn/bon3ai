@@ -16,8 +16,8 @@ func (m *Model) checkDropBuffer() {
 
 	elapsed := time.Now().Sub(m.lastCharTime).Milliseconds()
 
-	// Wait for paste to complete (100ms)
-	if elapsed < 100 {
+	// Wait for paste to complete
+	if elapsed < DebounceDropMs {
 		return
 	}
 

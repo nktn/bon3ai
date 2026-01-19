@@ -115,3 +115,86 @@ func TestClipboardContains(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatFileSize(t *testing.T) {
+	tests := []struct {
+		name     string
+		bytes    int64
+		expected string
+	}{
+		// Bytes
+		{"zero bytes", 0, "0B"},
+		{"single byte", 1, "1B"},
+		{"small bytes", 500, "500B"},
+		{"max bytes", 1023, "1023B"},
+
+		// Kilobytes
+		{"exact KB", 1024, "1.0KB"},
+		{"KB with decimal", 1536, "1.5KB"},
+		{"large KB", 102400, "100.0KB"},
+		{"max KB", 1048575, "1024.0KB"},
+
+		// Megabytes
+		{"exact MB", 1048576, "1.0MB"},
+		{"MB with decimal", 1572864, "1.5MB"},
+		{"large MB", 104857600, "100.0MB"},
+
+		// Gigabytes
+		{"exact GB", 1073741824, "1.0GB"},
+		{"GB with decimal", 1610612736, "1.5GB"},
+		{"large GB", 10737418240, "10.0GB"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatFileSize(tt.bytes)
+			if result != tt.expected {
+				t.Errorf("formatFileSize(%d) = %q, expected %q", tt.bytes, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestWrapText(t *testing.T) {
+	tests := []struct {
+		name     string
+		text     string
+		maxWidth int
+		expected []string
+	}{
+		// No wrapping needed
+		{"short text", "hello", 10, []string{"hello"}},
+		{"exact width", "hello", 5, []string{"hello"}},
+		{"empty text", "", 10, []string{""}},
+
+		// Basic wrapping
+		{"simple wrap", "hello world", 6, []string{"hello ", "world"}},
+		{"long text", "abcdefghij", 3, []string{"abc", "def", "ghi", "j"}},
+
+		// Edge cases
+		{"zero width", "hello", 0, []string{"hello"}},
+		{"negative width", "hello", -5, []string{"hello"}},
+		{"single char width", "abc", 1, []string{"a", "b", "c"}},
+
+		// Unicode/CJK handling
+		{"japanese chars", "あいう", 4, []string{"あい", "う"}},
+		{"mixed text", "aあbいc", 4, []string{"aあb", "いc"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := wrapText(tt.text, tt.maxWidth)
+			if len(result) != len(tt.expected) {
+				t.Errorf("wrapText(%q, %d) returned %d lines, expected %d lines",
+					tt.text, tt.maxWidth, len(result), len(tt.expected))
+				return
+			}
+			for i, line := range result {
+				if line != tt.expected[i] {
+					t.Errorf("wrapText(%q, %d)[%d] = %q, expected %q",
+						tt.text, tt.maxWidth, i, line, tt.expected[i])
+				}
+			}
+		})
+	}
+}

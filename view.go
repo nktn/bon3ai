@@ -318,101 +318,112 @@ func (m Model) renderInputPopup() string {
 
 	// Add completion candidates if available
 	if m.inputMode == ModeGoTo && len(m.completionCandidates) > 0 {
-		candidateStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-		selectedCandidateStyle := lipgloss.NewStyle().
-			Background(lipgloss.Color("238")).
-			Foreground(lipgloss.Color("252"))
-
-		// Calculate visible range based on selection (scroll to keep selection visible)
-		maxVisible := 5
-		totalCandidates := len(m.completionCandidates)
-		startIdx := 0
-		endIdx := totalCandidates
-
-		if totalCandidates > maxVisible {
-			// Calculate scroll offset to keep selection visible
-			selectedIdx := m.completionIndex
-			if selectedIdx < 0 {
-				selectedIdx = 0
-			}
-
-			// Keep selection in the middle when possible
-			startIdx = selectedIdx - maxVisible/2
-			if startIdx < 0 {
-				startIdx = 0
-			}
-			endIdx = startIdx + maxVisible
-			if endIdx > totalCandidates {
-				endIdx = totalCandidates
-				startIdx = endIdx - maxVisible
-				if startIdx < 0 {
-					startIdx = 0
-				}
-			}
-		}
-
-		content += "\n"
-		// Set consistent width for all candidates
-		candidateLineWidth := maxContentWidth - 1
-		candidateStyle = candidateStyle.Width(candidateLineWidth)
-		selectedCandidateStyle = selectedCandidateStyle.Width(candidateLineWidth)
-
-		// Show scroll indicator at top if needed
-		if startIdx > 0 {
-			scrollStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-			content += scrollStyle.Render(fmt.Sprintf(" ↑ %d more", startIdx)) + "\n"
-		}
-
-		// Width for display (keep some minimum visible)
-		displayWidth := maxContentWidth - 4
-		if displayWidth < 10 {
-			displayWidth = 10
-		}
-
-		for i := startIdx; i < endIdx; i++ {
-			candidate := m.completionCandidates[i]
-			displayCandidate := collapseHomePath(candidate)
-
-			// Wrap long paths into multiple lines instead of truncating
-			lines := wrapText(displayCandidate, displayWidth)
-			for lineIdx, line := range lines {
-				prefix := " "
-				if lineIdx > 0 {
-					prefix = "  " // Indent continuation lines
-				}
-				if i == m.completionIndex {
-					content += selectedCandidateStyle.Render(prefix+line) + "\n"
-				} else {
-					content += candidateStyle.Render(prefix+line) + "\n"
-				}
-			}
-		}
-
-		// Show scroll indicator at bottom if needed
-		if endIdx < totalCandidates {
-			scrollStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-			content += scrollStyle.Render(fmt.Sprintf(" ↓ %d more", totalCandidates-endIdx))
-		}
+		content += "\n" + m.renderCompletionCandidates(maxContentWidth)
 	}
 
 	// Add hint for ModeGoTo
 	if m.inputMode == ModeGoTo {
-		hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-		hint := " Tab:cycle Enter:open Esc:close"
-		// Truncate hint if too long
-		if lipgloss.Width(hint) > maxContentWidth {
-			hint = ansi.Truncate(hint, maxContentWidth-1, "") + "…"
-		}
-		// Only add newline if content doesn't already end with one
-		if !strings.HasSuffix(content, "\n") {
-			content += "\n"
-		}
-		content += hintStyle.Render(hint)
+		content += m.renderGoToHint(maxContentWidth)
 	}
 
 	// Apply width constraint to the popup
 	popupStyle := inputStyle.Width(maxContentWidth)
 	return popupStyle.Render(content)
+}
+
+// renderCompletionCandidates renders the completion candidate list for ModeGoTo
+func (m Model) renderCompletionCandidates(maxContentWidth int) string {
+	candidateStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	selectedCandidateStyle := lipgloss.NewStyle().
+		Background(lipgloss.Color("238")).
+		Foreground(lipgloss.Color("252"))
+
+	// Calculate visible range based on selection (scroll to keep selection visible)
+	maxVisible := MaxCompletionVisible
+	totalCandidates := len(m.completionCandidates)
+	startIdx := 0
+	endIdx := totalCandidates
+
+	if totalCandidates > maxVisible {
+		// Calculate scroll offset to keep selection visible
+		selectedIdx := m.completionIndex
+		if selectedIdx < 0 {
+			selectedIdx = 0
+		}
+
+		// Keep selection in the middle when possible
+		startIdx = selectedIdx - maxVisible/2
+		if startIdx < 0 {
+			startIdx = 0
+		}
+		endIdx = startIdx + maxVisible
+		if endIdx > totalCandidates {
+			endIdx = totalCandidates
+			startIdx = endIdx - maxVisible
+			if startIdx < 0 {
+				startIdx = 0
+			}
+		}
+	}
+
+	var content string
+
+	// Set consistent width for all candidates
+	candidateLineWidth := maxContentWidth - 1
+	candidateStyle = candidateStyle.Width(candidateLineWidth)
+	selectedCandidateStyle = selectedCandidateStyle.Width(candidateLineWidth)
+
+	// Show scroll indicator at top if needed
+	if startIdx > 0 {
+		scrollStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+		content += scrollStyle.Render(fmt.Sprintf(" ↑ %d more", startIdx)) + "\n"
+	}
+
+	// Width for display (keep some minimum visible)
+	displayWidth := maxContentWidth - 4
+	if displayWidth < 10 {
+		displayWidth = 10
+	}
+
+	for i := startIdx; i < endIdx; i++ {
+		candidate := m.completionCandidates[i]
+		displayCandidate := collapseHomePath(candidate)
+
+		// Wrap long paths into multiple lines instead of truncating
+		lines := wrapText(displayCandidate, displayWidth)
+		for lineIdx, line := range lines {
+			prefix := " "
+			if lineIdx > 0 {
+				prefix = "  " // Indent continuation lines
+			}
+			if i == m.completionIndex {
+				content += selectedCandidateStyle.Render(prefix+line) + "\n"
+			} else {
+				content += candidateStyle.Render(prefix+line) + "\n"
+			}
+		}
+	}
+
+	// Show scroll indicator at bottom if needed
+	if endIdx < totalCandidates {
+		scrollStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+		content += scrollStyle.Render(fmt.Sprintf(" ↓ %d more", totalCandidates-endIdx))
+	}
+
+	return content
+}
+
+// renderGoToHint renders the keyboard hint for ModeGoTo
+func (m Model) renderGoToHint(maxContentWidth int) string {
+	hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	hint := " Tab:cycle Enter:open Esc:close"
+
+	// Truncate hint if too long
+	if lipgloss.Width(hint) > maxContentWidth {
+		hint = ansi.Truncate(hint, maxContentWidth-1, "") + "…"
+	}
+
+	return "\n" + hintStyle.Render(hint)
 }
 
 // placeOverlay composites the foreground on top of the background
