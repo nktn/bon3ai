@@ -139,16 +139,24 @@ func (m *Model) confirmDelete() {
 }
 
 func (m *Model) executeDelete() {
-	paths := m.getSelectedPaths()
-	var success int
+	// Use deletePaths captured at confirmation time, not current selection
+	// This ensures the deleted items match what was shown in the confirmation dialog
+	paths := m.deletePaths
+	if len(paths) == 0 {
+		return
+	}
 
+	var success int
 	for _, path := range paths {
 		if err := DeleteFile(path); err == nil {
 			success++
 		}
 	}
 
-	m.marked = make(map[string]bool) // Clear marks without overwriting message
+	// Clear state
+	m.deletePaths = nil
+	m.deleteHasDirectories = false
+	m.marked = make(map[string]bool)
 	m.refreshTreeAndVCS()
 	m.adjustSelection()
 	m.message = fmt.Sprintf("Deleted %d item(s)", success)

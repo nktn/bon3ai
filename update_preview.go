@@ -95,7 +95,7 @@ func (m *Model) openPreview() tea.Cmd {
 	// Check if binary
 	if isBinaryContent(content) {
 		m.previewIsBinary = true
-		m.previewContent = formatHexPreview(content)
+		m.previewContent = formatHexPreview(content, len(content))
 	} else {
 		m.previewIsBinary = false
 		m.previewContent = strings.Split(string(content), "\n")
@@ -260,9 +260,10 @@ func isBinaryContent(content []byte) bool {
 	return float64(nonPrintable)/float64(checkLen) > 0.3
 }
 
-func formatHexPreview(content []byte) []string {
+func formatHexPreview(content []byte, originalSize int) []string {
 	var lines []string
 	maxBytes := MaxHexPreviewBytes
+	truncated := originalSize > maxBytes
 
 	if len(content) > maxBytes {
 		content = content[:maxBytes]
@@ -300,7 +301,7 @@ func formatHexPreview(content []byte) []string {
 		lines = append(lines, fmt.Sprintf("%08x  %s  %s", i, hexStr, string(ascii)))
 	}
 
-	if len(content) == maxBytes {
+	if truncated {
 		lines = append(lines, "... (truncated)")
 	}
 

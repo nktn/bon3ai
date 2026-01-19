@@ -167,13 +167,18 @@ func (m *Model) changeRoot(newPath string) {
 	// Update watcher
 	if m.watcher != nil {
 		m.watcher.Close()
+		m.watcher = nil
 	}
 	if m.watcherEnabled {
-		watcher, _ := NewWatcher(newPath)
-		m.watcher = watcher
-		if m.watcher != nil {
-			m.watcher.WatchExpandedDirs(m.tree)
+		watcher, err := NewWatcher(newPath)
+		if err != nil {
+			// Disable watching if watcher creation fails
+			m.watcherEnabled = false
+			m.message = fmt.Sprintf("→ %s (watch disabled: %v)", newPath, err)
+			return
 		}
+		m.watcher = watcher
+		m.watcher.WatchExpandedDirs(m.tree)
 	}
 
 	m.message = fmt.Sprintf("→ %s", newPath)
