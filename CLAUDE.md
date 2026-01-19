@@ -57,6 +57,9 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 
 ## Additional Documentation
 
+### Workflow
+- `.claude/WORKFLOW.md`: 開発ワークフローガイド
+
 ### Rules
 - `.claude/rules/agents.md`: Agent usage guide
 - `.claude/rules/architecture.md`: State machine and architecture details
