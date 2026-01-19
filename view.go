@@ -301,8 +301,8 @@ func (m Model) renderInputPopup() string {
 		title = "Go to"
 	}
 
-	// Use full terminal width (border is rendered within the width)
-	maxContentWidth := m.width
+	// Full terminal width minus border (2 chars for left + right border)
+	maxContentWidth := m.width - 2
 	if maxContentWidth < 20 {
 		maxContentWidth = 20
 	}
