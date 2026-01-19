@@ -74,3 +74,4 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 - `.claude/agents/doc-updater.md`: ドキュメント同期・更新
 - `.claude/agents/planner.md`: 実装計画の作成
 - `.claude/agents/refactor-cleaner.md`: リファクタリング・整理
+- `.claude/agents/tdd-guide.md`: テスト駆動開発ガイド
