@@ -216,6 +216,25 @@ func (m Model) updateInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			m.handleTabCompletion(true)
 			return m, nil
 		}
+
+		// Handle arrow keys and Ctrl+N/P for navigating candidates
+		// (j/k are reserved for text input during filter-as-you-type)
+		if len(m.completionCandidates) > 0 {
+			switch key {
+			case "down", "ctrl+n":
+				m.completionIndex++
+				if m.completionIndex >= len(m.completionCandidates) {
+					m.completionIndex = 0
+				}
+				return m, nil
+			case "up", "ctrl+p":
+				m.completionIndex--
+				if m.completionIndex < 0 {
+					m.completionIndex = len(m.completionCandidates) - 1
+				}
+				return m, nil
+			}
+		}
 	}
 
 	switch key {
@@ -234,15 +253,23 @@ func (m Model) updateInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			runes := []rune(m.inputBuffer)
 			m.inputBuffer = string(runes[:len(runes)-1])
 		}
-		// Clear completions on input change
-		m.clearCompletions()
+		// Refresh completions on input change (filter as you type)
+		if m.inputMode == ModeGoTo {
+			m.refreshCompletions()
+		} else {
+			m.clearCompletions()
+		}
 	default:
 		// Accept non-ASCII characters (e.g., Japanese)
 		if len(msg.Runes) > 0 {
 			m.inputBuffer += string(msg.Runes)
 		}
-		// Clear completions on input change
-		m.clearCompletions()
+		// Refresh completions on input change (filter as you type)
+		if m.inputMode == ModeGoTo {
+			m.refreshCompletions()
+		} else {
+			m.clearCompletions()
+		}
 	}
 
 	m.adjustScroll()
@@ -1200,6 +1227,20 @@ func (m *Model) handleTabCompletion(reverse bool) {
 
 func (m *Model) clearCompletions() {
 	m.completionCandidates = nil
+	m.completionIndex = -1
+}
+
+// refreshCompletions recalculates completions based on current input (for filter-as-you-type)
+func (m *Model) refreshCompletions() {
+	candidates, _ := getCompletions(m.inputBuffer, m.tree.Root.Path)
+
+	if len(candidates) == 0 {
+		m.clearCompletions()
+		return
+	}
+
+	m.completionCandidates = candidates
+	// Reset selection when candidates change (user must re-select after typing)
 	m.completionIndex = -1
 }
 

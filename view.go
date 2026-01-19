@@ -301,9 +301,20 @@ func (m Model) renderInputPopup() string {
 		title = "Go to"
 	}
 
+	// Full terminal width minus border (2 chars for left + right border)
+	maxContentWidth := m.width - 2
+	if maxContentWidth < 20 {
+		maxContentWidth = 20
+	}
+
 	// Display input with cursor
 	displayBuffer := collapseHomePath(m.inputBuffer)
 	content := fmt.Sprintf(" %s: %s█", title, displayBuffer)
+
+	// Truncate input line if too long (use ansi.Truncate for proper CJK width handling)
+	if lipgloss.Width(content) > maxContentWidth {
+		content = ansi.Truncate(content, maxContentWidth-1, "") + "…"
+	}
 
 	// Add completion candidates if available
 	if m.inputMode == ModeGoTo && len(m.completionCandidates) > 0 {
@@ -312,31 +323,81 @@ func (m Model) renderInputPopup() string {
 			Background(lipgloss.Color("238")).
 			Foreground(lipgloss.Color("252"))
 
-		// Limit displayed candidates
-		maxCandidates := 5
-		candidates := m.completionCandidates
-		if len(candidates) > maxCandidates {
-			candidates = candidates[:maxCandidates]
-		}
+		// Calculate visible range based on selection (scroll to keep selection visible)
+		maxVisible := 5
+		totalCandidates := len(m.completionCandidates)
+		startIdx := 0
+		endIdx := totalCandidates
 
-		content += "\n"
-		for i, candidate := range candidates {
-			displayCandidate := collapseHomePath(candidate)
-			if i == m.completionIndex {
-				content += selectedCandidateStyle.Render(" "+displayCandidate) + "\n"
-			} else {
-				content += candidateStyle.Render(" "+displayCandidate) + "\n"
+		if totalCandidates > maxVisible {
+			// Calculate scroll offset to keep selection visible
+			selectedIdx := m.completionIndex
+			if selectedIdx < 0 {
+				selectedIdx = 0
+			}
+
+			// Keep selection in the middle when possible
+			startIdx = selectedIdx - maxVisible/2
+			if startIdx < 0 {
+				startIdx = 0
+			}
+			endIdx = startIdx + maxVisible
+			if endIdx > totalCandidates {
+				endIdx = totalCandidates
+				startIdx = endIdx - maxVisible
+				if startIdx < 0 {
+					startIdx = 0
+				}
 			}
 		}
 
-		// Show "more" indicator
-		if len(m.completionCandidates) > maxCandidates {
-			moreStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
-			content += moreStyle.Render(fmt.Sprintf(" ... +%d more", len(m.completionCandidates)-maxCandidates))
+		content += "\n"
+		// Set consistent width for all candidates
+		candidateLineWidth := maxContentWidth - 1
+		candidateStyle = candidateStyle.Width(candidateLineWidth)
+		selectedCandidateStyle = selectedCandidateStyle.Width(candidateLineWidth)
+
+		// Show scroll indicator at top if needed
+		if startIdx > 0 {
+			scrollStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+			content += scrollStyle.Render(fmt.Sprintf(" ↑ %d more", startIdx)) + "\n"
+		}
+
+		// Width for display (keep some minimum visible)
+		displayWidth := maxContentWidth - 4
+		if displayWidth < 10 {
+			displayWidth = 10
+		}
+
+		for i := startIdx; i < endIdx; i++ {
+			candidate := m.completionCandidates[i]
+			displayCandidate := collapseHomePath(candidate)
+
+			// Wrap long paths into multiple lines instead of truncating
+			lines := wrapText(displayCandidate, displayWidth)
+			for lineIdx, line := range lines {
+				prefix := " "
+				if lineIdx > 0 {
+					prefix = "  " // Indent continuation lines
+				}
+				if i == m.completionIndex {
+					content += selectedCandidateStyle.Render(prefix+line) + "\n"
+				} else {
+					content += candidateStyle.Render(prefix+line) + "\n"
+				}
+			}
+		}
+
+		// Show scroll indicator at bottom if needed
+		if endIdx < totalCandidates {
+			scrollStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+			content += scrollStyle.Render(fmt.Sprintf(" ↓ %d more", totalCandidates-endIdx))
 		}
 	}
 
-	return inputStyle.Render(content)
+	// Apply width constraint to the popup
+	popupStyle := inputStyle.Width(maxContentWidth)
+	return popupStyle.Render(content)
 }
 
 // placeOverlay composites the foreground on top of the background
@@ -621,3 +682,45 @@ func formatFileSize(bytes int64) string {
 		return fmt.Sprintf("%dB", bytes)
 	}
 }
+
+// wrapText wraps text into multiple lines based on display width
+func wrapText(text string, maxWidth int) []string {
+	if maxWidth <= 0 {
+		return []string{text}
+	}
+
+	textWidth := lipgloss.Width(text)
+	if textWidth <= maxWidth {
+		return []string{text}
+	}
+
+	var lines []string
+	runes := []rune(text)
+	start := 0
+
+	for start < len(runes) {
+		// Find how many runes fit in maxWidth
+		end := start
+		currentWidth := 0
+
+		for end < len(runes) {
+			runeWidth := lipgloss.Width(string(runes[end]))
+			if currentWidth+runeWidth > maxWidth {
+				break
+			}
+			currentWidth += runeWidth
+			end++
+		}
+
+		// Ensure we make progress (at least one rune per line)
+		if end == start && start < len(runes) {
+			end = start + 1
+		}
+
+		lines = append(lines, string(runes[start:end]))
+		start = end
+	}
+
+	return lines
+}
+

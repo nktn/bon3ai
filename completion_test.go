@@ -11,16 +11,16 @@ func TestGetCompletions(t *testing.T) {
 	// Create temporary directory structure
 	tmpDir := t.TempDir()
 
-	// Create test directories and files
+	// Create test directories (only directories are returned for navigation)
 	dirs := []string{"Documents", "Downloads", "Desktop"}
-	files := []string{"file1.txt", "file2.txt"}
 
 	for _, dir := range dirs {
 		if err := os.Mkdir(filepath.Join(tmpDir, dir), 0755); err != nil {
 			t.Fatalf("failed to create test dir: %v", err)
 		}
 	}
-	for _, file := range files {
+	// Also create some files (should be ignored)
+	for _, file := range []string{"file1.txt", "file2.txt"} {
 		if err := os.WriteFile(filepath.Join(tmpDir, file), []byte{}, 0644); err != nil {
 			t.Fatalf("failed to create test file: %v", err)
 		}
@@ -66,13 +66,13 @@ func TestGetCompletions(t *testing.T) {
 		}
 	})
 
-	t.Run("directory trailing slash lists contents", func(t *testing.T) {
+	t.Run("directory trailing slash lists only directories", func(t *testing.T) {
 		input := tmpDir + string(os.PathSeparator)
 		candidates, _ := getCompletions(input, "")
 
-		// Should list all non-hidden entries (3 dirs + 2 files)
-		if len(candidates) != 5 {
-			t.Errorf("expected 5 candidates, got %d: %v", len(candidates), candidates)
+		// Should list only directories (3 dirs, files are ignored)
+		if len(candidates) != 3 {
+			t.Errorf("expected 3 candidates (directories only), got %d: %v", len(candidates), candidates)
 		}
 	})
 
@@ -89,16 +89,13 @@ func TestGetCompletions(t *testing.T) {
 		}
 	})
 
-	t.Run("file candidates have no trailing separator", func(t *testing.T) {
+	t.Run("files are not included in candidates", func(t *testing.T) {
 		input := filepath.Join(tmpDir, "file1")
 		candidates, _ := getCompletions(input, "")
 
-		if len(candidates) != 1 {
-			t.Fatalf("expected 1 candidate, got %d", len(candidates))
-		}
-
-		if strings.HasSuffix(candidates[0], string(os.PathSeparator)) {
-			t.Errorf("file candidate should not have trailing separator: %q", candidates[0])
+		// Files should not be returned (only directories for navigation)
+		if len(candidates) != 0 {
+			t.Errorf("expected 0 candidates (files should be excluded), got %d: %v", len(candidates), candidates)
 		}
 	})
 
@@ -124,15 +121,15 @@ func TestGetCompletions(t *testing.T) {
 func TestGetCompletionsHiddenFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create hidden and non-hidden files
-	if err := os.WriteFile(filepath.Join(tmpDir, ".hidden"), []byte{}, 0644); err != nil {
-		t.Fatalf("failed to create hidden file: %v", err)
+	// Create hidden and non-hidden directories
+	if err := os.Mkdir(filepath.Join(tmpDir, ".hidden"), 0755); err != nil {
+		t.Fatalf("failed to create hidden dir: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "visible"), []byte{}, 0644); err != nil {
-		t.Fatalf("failed to create visible file: %v", err)
+	if err := os.Mkdir(filepath.Join(tmpDir, "visible"), 0755); err != nil {
+		t.Fatalf("failed to create visible dir: %v", err)
 	}
 
-	t.Run("hidden files excluded by default", func(t *testing.T) {
+	t.Run("hidden directories excluded by default", func(t *testing.T) {
 		input := tmpDir + string(os.PathSeparator)
 		candidates, _ := getCompletions(input, "")
 
@@ -141,7 +138,7 @@ func TestGetCompletionsHiddenFiles(t *testing.T) {
 		}
 	})
 
-	t.Run("hidden files included when prefix is dot", func(t *testing.T) {
+	t.Run("hidden directories included when prefix is dot", func(t *testing.T) {
 		input := filepath.Join(tmpDir, ".")
 		candidates, _ := getCompletions(input, "")
 
@@ -159,10 +156,10 @@ func TestGetCompletionsRelativePath(t *testing.T) {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
 
-	// Create files in subdir
-	for _, name := range []string{"alpha.txt", "beta.txt"} {
-		if err := os.WriteFile(filepath.Join(subDir, name), []byte{}, 0644); err != nil {
-			t.Fatalf("failed to create file: %v", err)
+	// Create directories in subdir (only directories are returned for navigation)
+	for _, name := range []string{"alpha", "beta"} {
+		if err := os.Mkdir(filepath.Join(subDir, name), 0755); err != nil {
+			t.Fatalf("failed to create dir: %v", err)
 		}
 	}
 
@@ -186,10 +183,10 @@ func TestGetCompletionsRelativePath(t *testing.T) {
 		candidates, _ := getCompletions("subdir/al", baseDir)
 
 		if len(candidates) != 1 {
-			t.Errorf("expected 1 candidate (alpha.txt), got %d: %v", len(candidates), candidates)
+			t.Errorf("expected 1 candidate (alpha), got %d: %v", len(candidates), candidates)
 		}
 
-		expected := filepath.Join(subDir, "alpha.txt")
+		expected := filepath.Join(subDir, "alpha") + string(os.PathSeparator)
 		if len(candidates) == 1 && candidates[0] != expected {
 			t.Errorf("expected %q, got %q", expected, candidates[0])
 		}
@@ -221,18 +218,12 @@ func TestGetCompletionsTilde(t *testing.T) {
 	// This avoids flaky tests when real HOME has no visible files
 	tmpHome := t.TempDir()
 
-	// Create test files in the fake home directory
+	// Create test directories in the fake home directory (only directories are returned)
 	testDirs := []string{"Documents", "Downloads"}
-	testFiles := []string{"readme.txt"}
 
 	for _, dir := range testDirs {
 		if err := os.Mkdir(filepath.Join(tmpHome, dir), 0755); err != nil {
 			t.Fatalf("failed to create test dir: %v", err)
-		}
-	}
-	for _, file := range testFiles {
-		if err := os.WriteFile(filepath.Join(tmpHome, file), []byte{}, 0644); err != nil {
-			t.Fatalf("failed to create test file: %v", err)
 		}
 	}
 
@@ -246,9 +237,9 @@ func TestGetCompletionsTilde(t *testing.T) {
 	t.Run("tilde alone lists home directory", func(t *testing.T) {
 		candidates, _ := getCompletions("~", "")
 
-		// Should return entries from home directory (2 dirs + 1 file = 3)
-		if len(candidates) != 3 {
-			t.Errorf("expected 3 candidates, got %d: %v", len(candidates), candidates)
+		// Should return directories from home directory (2 dirs)
+		if len(candidates) != 2 {
+			t.Errorf("expected 2 candidates, got %d: %v", len(candidates), candidates)
 		}
 
 		// All candidates should be under home directory
@@ -262,9 +253,9 @@ func TestGetCompletionsTilde(t *testing.T) {
 	t.Run("tilde with slash lists home directory", func(t *testing.T) {
 		candidates, _ := getCompletions("~/", "")
 
-		// Should return entries from home directory (2 dirs + 1 file = 3)
-		if len(candidates) != 3 {
-			t.Errorf("expected 3 candidates, got %d: %v", len(candidates), candidates)
+		// Should return directories from home directory (2 dirs)
+		if len(candidates) != 2 {
+			t.Errorf("expected 2 candidates, got %d: %v", len(candidates), candidates)
 		}
 
 		// All candidates should be under home directory
