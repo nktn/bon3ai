@@ -153,7 +153,28 @@ stateDiagram-v2
 | `b` / `PageUp` | ページアップ |
 | `g` | 先頭へジャンプ |
 | `G` | 末尾へジャンプ |
+| `n` | 次の変更行へジャンプ |
+| `N` | 前の変更行へジャンプ |
 | `q` / `Esc` / `o` | プレビュー終了 |
+
+### Preview Diff 表示
+
+未コミット変更行をハイライト表示し、n/N でジャンプ可能。
+
+**マーカー表示**:
+- `+ ` (緑): 追加行
+- `~ ` (黄): 変更行
+
+**インジケータ**: `[2/5 changes]` - 現在位置/総変更数
+
+**実装** (`vcs.go`, `gitstatus.go`, `jjstatus.go`):
+- `GetFileDiff(path)`: 未コミット変更行を取得
+- `parseGitDiff()`: Git unified diff 解析
+
+**State Fields** (`model.go`):
+- `previewDiffLines []DiffLine`: 変更行リスト
+- `previewDiffMap map[int]DiffLine`: 行番号→変更タイプ
+- `previewDiffIndex int`: 現在選択中の変更 (-1 = 未選択)
 
 ## VCS Integration
 

@@ -92,13 +92,13 @@ func (m Model) renderPreview() string {
 			b.WriteString("\n")
 		}
 	} else {
-		// Text/binary preview - with line numbers
+		// Text/binary preview - with line numbers and diff markers
 		for i := m.previewScroll; i < len(m.previewContent) && i < m.previewScroll+visibleHeight; i++ {
-			lineNum := fmt.Sprintf("%4d ", i+1)
+			lineNum := i + 1
 			line := m.previewContent[i]
 
-			// Truncate long lines
-			maxWidth := m.width - 6
+			// Truncate long lines (account for marker column)
+			maxWidth := m.width - 8 // 2 for marker, 5 for line number, 1 for space
 			if maxWidth < 1 {
 				maxWidth = 1
 			}
@@ -110,8 +110,33 @@ func (m Model) renderPreview() string {
 				}
 			}
 
-			b.WriteString(lineNumStyle.Render(lineNum))
-			b.WriteString(line)
+			// Diff marker
+			marker := "  "
+			markerStyle := lineNumStyle
+			lineStyle := lipgloss.NewStyle()
+
+			if dl, ok := m.previewDiffMap[lineNum]; ok {
+				switch dl.Type {
+				case DiffLineAdded:
+					marker = "+ "
+					markerStyle = diffAddedMarkerStyle
+				case DiffLineModified:
+					marker = "~ "
+					markerStyle = diffModifiedMarkerStyle
+				}
+			}
+
+			// Highlight current diff line
+			if m.previewDiffIndex >= 0 && m.previewDiffIndex < len(m.previewDiffLines) {
+				if m.previewDiffLines[m.previewDiffIndex].Line == lineNum {
+					lineStyle = diffCurrentLineStyle
+				}
+			}
+
+			lineNumStr := fmt.Sprintf("%4d ", lineNum)
+			b.WriteString(markerStyle.Render(marker))
+			b.WriteString(lineNumStyle.Render(lineNumStr))
+			b.WriteString(lineStyle.Render(line))
 			b.WriteString("\n")
 		}
 	}
@@ -137,14 +162,32 @@ func (m Model) renderPreview() string {
 				formatFileSize(m.imageSize))
 		}
 	} else {
-		// Text/binary preview - show scroll info
+		// Text/binary preview - show scroll info and diff indicator
 		totalLines := len(m.previewContent)
 		currentLine := m.previewScroll + 1
 		percent := 0
 		if totalLines > 0 {
 			percent = (currentLine * 100) / totalLines
 		}
-		status = fmt.Sprintf(" Line %d/%d (%d%%) | j/k:scroll f/b:page g/G:top/bottom q:close ", currentLine, totalLines, percent)
+
+		// Build diff indicator
+		diffIndicator := ""
+		if len(m.previewDiffLines) > 0 {
+			if m.previewDiffIndex >= 0 {
+				diffIndicator = fmt.Sprintf(" [%d/%d changes]", m.previewDiffIndex+1, len(m.previewDiffLines))
+			} else {
+				diffIndicator = fmt.Sprintf(" [%d changes]", len(m.previewDiffLines))
+			}
+		}
+
+		// Build help text
+		help := "j/k:scroll"
+		if len(m.previewDiffLines) > 0 {
+			help += " n/N:changes"
+		}
+		help += " q:close"
+
+		status = fmt.Sprintf(" Line %d/%d (%d%%)%s | %s ", currentLine, totalLines, percent, diffIndicator, help)
 	}
 	b.WriteString(previewStatusStyle.Width(m.width).Render(status))
 

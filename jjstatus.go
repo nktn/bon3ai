@@ -207,3 +207,24 @@ func parseJJStatus(status byte) VCSStatus {
 		return VCSStatusNone
 	}
 }
+
+// GetFileDiff returns changed lines for a file (uncommitted changes)
+func (j *JJRepo) GetFileDiff(path string) []DiffLine {
+	if j.Root == "" {
+		return nil
+	}
+
+	relPath, err := filepath.Rel(j.Root, path)
+	if err != nil {
+		return nil
+	}
+
+	// Use jj diff with git format (same as git unified diff)
+	output, err := exec.Command("jj", "-R", j.Root, "diff", "--git", relPath).Output()
+	if err != nil {
+		return nil
+	}
+
+	// JJ uses git-style unified diff, so we can reuse the git parser
+	return parseGitDiff(string(output))
+}

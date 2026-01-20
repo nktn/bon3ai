@@ -112,6 +112,18 @@ var (
 
 	gitConflictStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("201")) // Magenta
+
+	// Diff marker styles (Preview mode)
+	diffAddedMarkerStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("82")). // Green
+				Bold(true)
+
+	diffModifiedMarkerStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("226")). // Yellow
+				Bold(true)
+
+	diffCurrentLineStyle = lipgloss.NewStyle().
+				Background(lipgloss.Color("236"))
 )
 
 // Model represents the application state
@@ -147,6 +159,11 @@ type Model struct {
 	imageHeight int
 	imageFormat string
 	imageSize   int64
+
+	// Preview diff navigation
+	previewDiffLines []DiffLine       // Changed lines in preview
+	previewDiffMap   map[int]DiffLine // Line number -> DiffLine for quick lookup
+	previewDiffIndex int              // Current diff index (-1 = none selected)
 
 	// Mouse support
 	lastClickTime  time.Time
@@ -206,6 +223,7 @@ func NewModel(path string) (Model, error) {
 		watcher:          watcher,
 		watcherEnabled:   watcher != nil,
 		completionIndex:  -1,
+		previewDiffIndex: -1,
 	}, nil
 }
 

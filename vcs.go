@@ -21,6 +21,21 @@ const (
 	VCSStatusConflict
 )
 
+// DiffLineType represents the type of change for a line in a diff
+type DiffLineType int
+
+const (
+	DiffLineAdded    DiffLineType = iota // Line was added (green)
+	DiffLineDeleted                      // Line was deleted (red)
+	DiffLineModified                     // Line was modified (yellow)
+)
+
+// DiffLine represents a changed line in a file diff
+type DiffLine struct {
+	Line int          // Line number in the current file (1-based)
+	Type DiffLineType // Type of change
+}
+
 // VCSType represents the type of version control system
 type VCSType int
 
@@ -52,6 +67,9 @@ type VCSRepo interface {
 
 	// GetDeletedFiles returns a list of deleted file paths (for ghost entries)
 	GetDeletedFiles() []string
+
+	// GetFileDiff returns changed lines for a file (uncommitted changes)
+	GetFileDiff(path string) []DiffLine
 }
 
 // NewVCSRepo creates a new VCSRepo, automatically detecting the VCS type
