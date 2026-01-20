@@ -122,6 +122,10 @@ var (
 				Foreground(lipgloss.Color("226")). // Yellow
 				Bold(true)
 
+	diffDeletedMarkerStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("196")). // Red
+				Bold(true)
+
 	diffCurrentLineStyle = lipgloss.NewStyle().
 				Background(lipgloss.Color("236"))
 )

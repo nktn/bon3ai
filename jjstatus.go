@@ -220,7 +220,8 @@ func (j *JJRepo) GetFileDiff(path string) []DiffLine {
 	}
 
 	// Use jj diff with git format (same as git unified diff)
-	output, err := exec.Command("jj", "-R", j.Root, "diff", "--git", relPath).Output()
+	// Use "--" to prevent paths starting with "-" from being misinterpreted as options
+	output, err := exec.Command("jj", "-R", j.Root, "diff", "--git", "--", relPath).Output()
 	if err != nil {
 		return nil
 	}

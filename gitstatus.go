@@ -254,15 +254,21 @@ func parseGitDiff(output string) []DiffLine {
 	lines := strings.Split(output, "\n")
 
 	var currentNewLine int
-	var deletedAtLine int // Track where deletions occurred
+	var deletedCount int   // Number of consecutive deleted lines
+	var hunkHasAdditions bool // Whether current hunk has any additions
 
 	for _, line := range lines {
 		// Check for hunk header
 		if matches := hunkRegex.FindStringSubmatch(line); matches != nil {
+			// Handle pending deletion-only hunk (deletions without any additions)
+			if deletedCount > 0 && !hunkHasAdditions && currentNewLine > 0 {
+				result = append(result, DiffLine{Line: currentNewLine, Type: DiffLineDeleted})
+			}
 			// Parse new file start line
 			newStart, _ := strconv.Atoi(matches[3])
 			currentNewLine = newStart
-			deletedAtLine = 0
+			deletedCount = 0
+			hunkHasAdditions = false
 			continue
 		}
 
@@ -276,28 +282,36 @@ func parseGitDiff(output string) []DiffLine {
 			if strings.HasPrefix(line, "+++") {
 				continue
 			}
-			// Check if this is a modification (deletion followed by addition at same position)
-			if deletedAtLine == currentNewLine {
+			hunkHasAdditions = true
+			// If we have pending deletions, mark as modified (replacement)
+			if deletedCount > 0 {
 				result = append(result, DiffLine{Line: currentNewLine, Type: DiffLineModified})
+				deletedCount--
 			} else {
 				result = append(result, DiffLine{Line: currentNewLine, Type: DiffLineAdded})
 			}
 			currentNewLine++
-			deletedAtLine = 0
 
 		case '-':
 			// Skip diff header lines
 			if strings.HasPrefix(line, "---") {
 				continue
 			}
-			// Mark deletion at current position (will be used to detect modification)
-			deletedAtLine = currentNewLine
+			// Count deletions (will be matched with additions for modifications)
+			deletedCount++
 
 		case ' ':
 			// Context line (shouldn't appear with -U0, but handle anyway)
+			// Reset deletion tracking without marking (not a deletion-only change)
+			deletedCount = 0
+			hunkHasAdditions = false
 			currentNewLine++
-			deletedAtLine = 0
 		}
+	}
+
+	// Handle trailing deletion-only hunk
+	if deletedCount > 0 && !hunkHasAdditions && currentNewLine > 0 {
+		result = append(result, DiffLine{Line: currentNewLine, Type: DiffLineDeleted})
 	}
 
 	return result

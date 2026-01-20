@@ -123,6 +123,9 @@ func (m Model) renderPreview() string {
 				case DiffLineModified:
 					marker = "~ "
 					markerStyle = diffModifiedMarkerStyle
+				case DiffLineDeleted:
+					marker = "- "
+					markerStyle = diffDeletedMarkerStyle
 				}
 			}
 
