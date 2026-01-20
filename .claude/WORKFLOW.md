@@ -2,21 +2,48 @@
 
 Claude Code を活用した bon3ai 開発ワークフロー。
 
-## TL;DR - 最速の開発方法
+## ワークフロー選択
+
+| パターン | コマンド | 特徴 |
+|---------|---------|------|
+| **自動オーケストレーション** | `/dev` | エージェント並列実行、全ステップ自動連携 |
+| **手動** | `/plan` → `/tdd` → `/impl` → ... | ステップごとに確認・調整可能 |
+
+### 自動オーケストレーション (`/dev`) - 推奨
 
 ```bash
 /dev Add <機能の説明>
 ```
 
-これだけで複数エージェントが並列で動き、計画→テスト→実装→レビュー→ドキュメントまで自動連携します。
+複数エージェントが並列で動き、計画→テスト→実装→レビュー→ドキュメントまで自動連携。
+
+**向いているケース:**
+- 明確な機能追加
+- 標準的なバグ修正
+- 定型的なリファクタリング
+
+### 手動パターン
+
+```bash
+/plan → /tdd → /impl → /build-fix → /update-docs → /pr → /codex → (修正 → /codex)
+```
+
+各ステップで結果を確認しながら進める。
+
+**向いているケース:**
+- 複雑な設計判断が必要
+- 途中で方針を変える可能性がある
+- 学習目的で各ステップを理解したい
 
 ---
 
-## 基本サイクル
+## 手動パターン詳細
+
+### 基本フロー
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     開発ワークフロー                          │
+│                     手動開発ワークフロー                       │
 └─────────────────────────────────────────────────────────────┘
 
   ユーザー要求
@@ -33,7 +60,7 @@ Claude Code を活用した bon3ai 開発ワークフロー。
        │
        ▼
   ┌─────────┐
-  │  実装   │ ─── rules に従ってコーディング
+  │  /impl  │ ─── 計画とテストに基づいて実装
   └────┬────┘
        │
        ▼
@@ -42,17 +69,39 @@ Claude Code を活用した bon3ai 開発ワークフロー。
   └──────┬───────┘
        │
        ▼
-  ┌─────────┐
-  │ /codex  │ ─── コードレビュー
-  └────┬────┘
-       │
-       ▼
   ┌──────────────┐
   │ /update-docs │ ─── ドキュメント同期
   └──────┬───────┘
        │
        ▼
-    PR 作成
+  ┌─────────┐
+  │   /pr   │ ─── PR 作成
+  └────┬────┘
+       │
+       ▼
+  ┌─────────┐
+  │ /codex  │ ─── PR コードレビュー
+  └────┬────┘
+       │
+       ▼
+   修正あり？ ──No──→ 完了
+       │
+      Yes
+       │
+       ▼
+  ┌─────────────────────────────────┐
+  │ /pr comment 意思決定結果          │
+  │ (例: 指摘1修正、指摘2見送り理由)   │
+  └────────────┬────────────────────┘
+       │
+       ▼
+  ┌─────────────────┐
+  │  修正実施        │
+  │  (必要に応じて    │
+  │  /update-docs)  │
+  └────────┬────────┘
+       │
+       └──→ /codex (再レビュー)
 ```
 
 ---
@@ -65,20 +114,31 @@ Claude Code を活用した bon3ai 開発ワークフロー。
 # Step 1: 計画
 /plan Add bookmark feature for frequently accessed directories
 
-# Step 2: TDD で実装
+# Step 2: テスト作成
 /tdd Implement bookmark save/load
 
-# Step 3: ビルド確認
-/build-fix
+# Step 3: 実装
+/impl Add bookmark save/load functions
 
-# Step 4: レビュー
-/codex コードレビューして
+# Step 4: ビルド確認
+/build-fix
 
 # Step 5: ドキュメント更新
 /update-docs
 
-# Step 6: PR 作成
-gh pr create
+# Step 6: /pr
+/pr
+
+# Step 7: コードレビュー
+/codex
+
+# Step 8: 修正があれば意思決定をコメント
+/pr comment 指摘1修正、指摘2は○○の理由で見送り
+
+# Step 9: 修正実施（必要に応じて /update-docs も再実行）
+
+# Step 10: 再レビュー
+/codex
 ```
 
 **使用される Rules:**
@@ -99,16 +159,19 @@ gh pr create
 # Step 1: 問題の再現テスト作成
 /tdd Write regression test for the bug
 
-# Step 2: 修正
-# (rules/coding-style.md に従う)
+# Step 2: 修正実装
+/impl Fix the bug
 
 # Step 3: ビルド確認
 /build-fix
 
-# Step 4: レビュー
-/codex バグ修正をレビューして
+# Step 4: /pr
+/pr
 
-# Step 5: PR 作成
+# Step 5: コードレビュー
+/codex
+
+# Step 6: 修正があれば /pr comment (意思決定) → 修正 → /codex
 ```
 
 **使用される Rules:**
@@ -132,11 +195,16 @@ gh pr create
 # Step 4: テスト確認
 make test
 
-# Step 5: レビュー
-/codex リファクタリングをレビューして
-
-# Step 6: ドキュメント更新（構造変更があれば）
+# Step 5: ドキュメント更新（構造変更があれば）
 /update-codemaps
+
+# Step 6: /pr
+/pr
+
+# Step 7: コードレビュー
+/codex
+
+# Step 8: 修正があれば /pr comment (意思決定) → 修正 → /codex
 ```
 
 **使用される Rules:**
@@ -148,6 +216,10 @@ make test
 ### 4. 新しい InputMode 追加
 
 ```bash
+# Step 0: TUI パターン参照（推奨）
+/opentui input component patterns
+/opentui keyboard handling
+
 # Step 1: 計画
 /plan Add ModeFilter for filtering file list
 
@@ -155,6 +227,7 @@ make test
 /tdd Implement filter mode state transitions
 
 # Step 3: 実装
+/impl Add ModeFilter
 # model.go: InputMode 追加
 # update.go: キーハンドリング
 # view.go: レンダリング
@@ -162,13 +235,21 @@ make test
 # Step 4: ビルド確認
 /build-fix
 
-# Step 5: レビュー
-/codex
-
-# Step 6: ドキュメント更新（必須）
+# Step 5: ドキュメント更新（必須）
 /update-docs  # README.md キーバインド表
 # .claude/rules/architecture.md 状態遷移図を手動更新
+
+# Step 6: /pr
+/pr
+
+# Step 7: コードレビュー
+/codex
+
+# Step 8: 修正があれば /pr comment (意思決定) → 修正 → /codex
 ```
+
+**使用される Skills:**
+- `opentui` → TUI パターン参照
 
 **使用される Agents:**
 - `planner` → 設計
@@ -188,60 +269,74 @@ go tool pprof cpu.out
 /plan Optimize file tree loading performance
 
 # Step 3: 実装
+/impl Optimize file tree loading
 # (rules/performance.md のパターン参照)
 
 # Step 4: ベンチマーク比較
 go test -bench . -benchmem
 
-# Step 5: レビュー
-/codex パフォーマンス改善をレビューして
+# Step 5: /pr
+/pr
+
+# Step 6: コードレビュー
+/codex
+
+# Step 7: 修正があれば /pr comment (意思決定) → 修正 → /codex
 ```
 
 ---
 
-## 自動オーケストレーション (/dev)
+## 自動オーケストレーション詳細 (`/dev`)
 
-### 並列エージェント連携
+### 全体フロー
 
 ```
 /dev Add bookmark feature
 
-        ┌─────────────┐
-        │   /dev      │
-        └──────┬──────┘
-               │
-    ┌──────────┼──────────┐
-    │          │          │
-    ▼          ▼          ▼
-┌────────┐ ┌────────┐ ┌────────┐
-│planner │ │architect│ │tdd-guide│  ← 並列実行
-└────┬───┘ └────┬───┘ └────┬───┘
-    │          │          │
-    └──────────┼──────────┘
-               │
-               ▼
-        ┌─────────────┐
-        │  結果統合    │
-        └──────┬──────┘
-               │
-    ┌──────────┼──────────┐
-    │          │          │
-    ▼          ▼          ▼
-  テスト作成   実装    ドキュメント  ← 順次実行
+┌─────────────────────────────────────────────────────────────┐
+│ Phase 1: 並列分析                                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌────────┐ ┌────────────┐ ┌─────────┐ ┌──────────┐        │
+│  │planner │ │tui-designer│ │architect│ │tdd-guide │ ← 並列  │
+│  └───┬────┘ └─────┬──────┘ └────┬────┘ └────┬─────┘        │
+│      │            │             │           │               │
+│      └────────────┴──────┬──────┴───────────┘               │
+│                          ▼                                  │
+│                   ┌───────────┐                             │
+│                   │ 結果統合   │                             │
+│                   └─────┬─────┘                             │
+└─────────────────────────┼───────────────────────────────────┘
+                          │
+┌─────────────────────────┼───────────────────────────────────┐
+│ Phase 2: 順次実行        │                                   │
+├─────────────────────────┼───────────────────────────────────┤
+│                         ▼                                   │
+│     /tdd → /impl → /build-fix → /update-docs               │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+┌─────────────────────────┼───────────────────────────────────┐
+│ Phase 3: レビュー        │                                   │
+├─────────────────────────┼───────────────────────────────────┤
+│                         ▼                                   │
+│     /pr → /codex → 修正対応 (→ /codex)                  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### モード別の並列構成
 
-| モード | 並列エージェント |
-|--------|------------------|
-| `--mode=feature` | planner + architect + tdd-guide |
-| `--mode=fix` | tdd-guide + build-fixer |
-| `--mode=refactor` | architect + refactor-cleaner + coverage |
+| モード | Phase 1 (並列) | Phase 2 (順次) |
+|--------|----------------|----------------|
+| `feature` | planner + **tui-designer** + architect + tdd-guide | /tdd → /impl → /build-fix → /update-docs |
+| `fix` | **tui-designer** + tdd-guide + build-fixer | /tdd → /impl → /build-fix |
+| `refactor` | **tui-designer** + architect + refactor-cleaner + coverage | /refactor-clean → make test → /update-codemaps |
+
+> **Note**: bon3ai は TUI アプリのため、全モードで `tui-designer` が OpenTUI パターンを参照
 
 ### 使用例
 
 ```bash
-# 新機能（デフォルト）
+# 新機能（デフォルト・tui-designer が常に参加）
 /dev Add split pane view
 
 # バグ修正
@@ -253,6 +348,47 @@ go test -bench . -benchmem
 
 ---
 
+## TUI パターン参照 (/opentui)
+
+TUI コンポーネントやインタラクション設計で迷ったら、OpenTUI のパターンを参照。
+
+### 参照タイミング
+
+| 場面 | 参照先 |
+|------|--------|
+| 入力コンポーネント設計 | `components/inputs.md` |
+| レイアウト・配置 | `layout/README.md`, `layout/patterns.md` |
+| キーボード操作設計 | `keyboard/README.md` |
+| アニメーション追加 | `animation/README.md` |
+| テスト設計 | `testing/README.md` |
+
+### 使用例
+
+```bash
+# 新しい入力モード設計時
+/opentui input component patterns
+
+# レイアウト参考
+/opentui flexbox layout patterns
+
+# キーボードナビゲーション設計
+/opentui keyboard handling best practices
+```
+
+### Bubble Tea への適用
+
+OpenTUI のパターンを Go/Bubble Tea に翻訳する際の対応:
+
+| OpenTUI | Bubble Tea |
+|---------|------------|
+| React hooks | Model fields + Update |
+| JSX components | View functions |
+| Flexbox | lipgloss.JoinVertical/Horizontal |
+| Event handlers | tea.Msg + Update |
+| Focus management | InputMode state |
+
+---
+
 ## クイックリファレンス
 
 ### よく使うコマンド
@@ -260,12 +396,18 @@ go test -bench . -benchmem
 | 状況 | コマンド |
 |------|----------|
 | 何から始めるか分からない | `/plan` |
-| 新機能を実装したい | `/tdd` |
+| テストを先に書きたい | `/tdd` |
+| 計画・テスト後に実装 | `/impl` |
 | ビルドが通らない | `/build-fix` |
-| コードをレビューしたい | `/codex` |
-| テストカバレッジを見たい | `/test-coverage` |
 | ドキュメントを更新したい | `/update-docs` |
+| PR を作成したい | `/pr` |
+| PR の状態を確認 | `/pr status` |
+| PR にコメント | `/pr comment <内容>` |
+| PR をリバート | `/pr revert` |
+| PR をレビューしたい | `/codex` |
+| テストカバレッジを見たい | `/test-coverage` |
 | コードを整理したい | `/refactor-clean` |
+| TUI パターンを参照 | `/opentui` |
 
 ### Rules の適用タイミング
 
