@@ -35,11 +35,19 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 - **main.go**: Entry point, initializes Bubble Tea program with alt screen and mouse support
 - **model.go**: Application state (`Model` struct), input modes, and lipgloss styles
 - **view.go**: Rendering logic for tree view, preview, status bar, and popups
-- **update.go**: Event handling for keyboard, mouse, and window events
+- **update.go**: Event handling, mode dispatching for keyboard, mouse, and window events
+- **update_preview.go**: Preview mode logic (image/text/binary detection and rendering)
+- **update_navigation.go**: Navigation functions (move, expand, collapse, GoTo)
+- **update_clipboard.go**: Marking, clipboard operations (yank/cut/paste), delete
+- **constants.go**: Timing and size constants
 - **filetree.go**: `FileTree` and `FileNode` structs for hierarchical tree with lazy loading
 - **fileops.go**: File operations (copy, move, delete, rename, create) and clipboard
+- **completion.go**: Tab completion for ModeGoTo
 - **vcs.go**: `VCSRepo` interface and auto-detection (JJ priority over Git)
+- **gitstatus.go**: Git VCS implementation
+- **jjstatus.go**: Jujutsu VCS implementation
 - **watcher.go**: Real-time file system monitoring using fsnotify
+- **drop.go**: Drag & drop (terminal paste) handling
 
 ## Key Dependencies
 

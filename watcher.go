@@ -32,7 +32,7 @@ func NewWatcher(rootPath string) (*Watcher, error) {
 	w := &Watcher{
 		watcher:    watcher,
 		rootPath:   rootPath,
-		debounceMs: 200, // 200ms debounce for file write completion
+		debounceMs: DebounceWatchMs,
 		watched:    make(map[string]bool),
 	}
 

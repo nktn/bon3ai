@@ -121,7 +121,7 @@ func TestFormatHexPreview(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatHexPreview(tt.content)
+			result := formatHexPreview(tt.content, len(tt.content))
 
 			if len(result) != tt.expectedLines {
 				t.Errorf("formatHexPreview() returned %d lines, expected %d", len(result), tt.expectedLines)
@@ -137,7 +137,7 @@ func TestFormatHexPreview(t *testing.T) {
 func TestFormatHexPreview_ASCIIPart(t *testing.T) {
 	// Test ASCII representation
 	content := []byte("Hello\x00World!")
-	result := formatHexPreview(content)
+	result := formatHexPreview(content, len(content))
 
 	if len(result) != 1 {
 		t.Fatalf("Expected 1 line, got %d", len(result))
@@ -156,7 +156,7 @@ func TestFormatHexPreview_Truncation(t *testing.T) {
 		content[i] = byte(i % 256)
 	}
 
-	result := formatHexPreview(content)
+	result := formatHexPreview(content, len(content))
 
 	// Should be truncated to 100 lines (1600 bytes / 16) + 1 truncation message
 	expectedLines := 101

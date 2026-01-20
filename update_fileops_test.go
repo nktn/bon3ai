@@ -32,6 +32,9 @@ func TestExecuteDelete_SingleFile(t *testing.T) {
 	// Navigate to the file (index 1, since index 0 is root)
 	model.selected = 1
 
+	// Confirm delete (sets deletePaths)
+	model.confirmDelete()
+
 	// Execute delete
 	model.executeDelete()
 
@@ -68,6 +71,9 @@ func TestExecuteDelete_MultipleMarkedFiles(t *testing.T) {
 	// Mark both files
 	model.marked[file1] = true
 	model.marked[file2] = true
+
+	// Confirm delete (sets deletePaths from marked files)
+	model.confirmDelete()
 
 	// Execute delete
 	model.executeDelete()
@@ -707,7 +713,8 @@ func TestRefreshTreeAndVCS_CalledAfterDelete(t *testing.T) {
 	// Record tree length before delete
 	treeLenBefore := model.tree.Len()
 
-	// Execute delete
+	// Confirm and execute delete
+	model.confirmDelete()
 	model.executeDelete()
 
 	// Tree should be refreshed (length should decrease)
@@ -1030,6 +1037,7 @@ func TestVCSRefresh_WithGitRepo(t *testing.T) {
 			break
 		}
 	}
+	model.confirmDelete()
 	model.executeDelete()
 
 	// After refresh, VCS should report deleted file
