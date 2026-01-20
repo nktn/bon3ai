@@ -40,7 +40,7 @@ Phase 3: レビュー
 
 ```
 Phase 1: 並列分析
-├─ [tui-designer]   → UI パターン参照（UI バグの場合）
+├─ [tui-designer]   → UI パターン参照
 ├─ [tdd-guide]      → 回帰テスト設計
 └─ [build-fixer]    → 関連エラー確認
 
@@ -62,7 +62,7 @@ Phase 3: レビュー
 
 ```
 Phase 1: 並列分析
-├─ [tui-designer]      → UI パターン参照（改善提案）
+├─ [tui-designer]      → UI パターン参照
 ├─ [architect]         → 構造分析
 ├─ [refactor-cleaner]  → 改善ポイント特定
 └─ coverage 分析 (/test-coverage)

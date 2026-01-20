@@ -91,8 +91,11 @@ gh pr comment <番号> --body "<内容>"
 ```bash
 # 内部で実行
 gh pr view --json number,mergeCommit -q '.mergeCommit.oid'
-# マージコミットの場合は -m 1 が必要
-git revert -m 1 <マージコミット>
+
+# マージ方法によって異なる:
+# - squash/rebase の場合: git revert <コミット>
+# - merge の場合: git revert -m 1 <マージコミット>
+
 # 新しいリバート PR を作成
 ```
 
