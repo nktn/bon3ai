@@ -208,6 +208,7 @@ func (m *Model) loadImagePreview(path string) ([]string, error) {
 			"--animate", "off",
 			"--polite", "on",
 			"--size", fmt.Sprintf("%dx%d", width, height),
+			"--", // Prevent option injection from filenames starting with -
 			path,
 		)
 		output, err := cmd.Output()
@@ -244,6 +245,11 @@ func isBinaryContent(content []byte) bool {
 	checkLen := len(content)
 	if checkLen > 512 {
 		checkLen = 512
+	}
+
+	// Empty content is not binary
+	if checkLen == 0 {
+		return false
 	}
 
 	nonPrintable := 0
