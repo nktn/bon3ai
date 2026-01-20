@@ -87,7 +87,6 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 - `.claude/commands/plan.md`: Feature planning (`/plan`)
 - `.claude/commands/tdd.md`: Test-driven development (`/tdd`)
 - `.claude/commands/impl.md`: Implementation (`/impl`)
-- `.claude/commands/opentui.md`: OpenTUI TUI framework (`/opentui`)
 - `.claude/commands/build-fix.md`: Build error fix (`/build-fix`)
 - `.claude/commands/refactor-clean.md`: Refactor & cleanup (`/refactor-clean`)
 - `.claude/commands/pr.md`: Pull Request 作成 (`/pr`)
