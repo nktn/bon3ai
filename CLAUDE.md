@@ -84,7 +84,6 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 - `.claude/skills/tdd/SKILL.md`: TDD workflow (`/tdd`)
 - `.claude/skills/opentui/SKILL.md`: OpenTUI development (`/opentui`)
 - `.claude/commands/feature-plan.md`: Feature planning (`/feature-plan`)
-- `.claude/skills/tdd/SKILL.md`: Test-driven development (`/tdd`)
 - `.claude/commands/impl.md`: Implementation (`/impl`)
 - `.claude/commands/build-fix.md`: Build error fix (`/build-fix`)
 - `.claude/commands/refactor-clean.md`: Refactor & cleanup (`/refactor-clean`)
