@@ -172,6 +172,8 @@ type Model struct {
 	// Tab completion (ModeGoTo)
 	completionCandidates []string // Completion candidates
 	completionIndex      int      // Selected candidate (-1 = none)
+	completionCacheDir   string   // Cached directory path for completion
+	completionCacheInput string   // Cached input for completion
 }
 
 // NewModel creates a new Model

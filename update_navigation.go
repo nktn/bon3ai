@@ -200,8 +200,9 @@ func (m *Model) handleTabCompletion(reverse bool) {
 				m.completionIndex = 0
 			}
 		}
-		// Update input buffer with selected candidate
+		// Update input buffer with selected candidate and sync cache
 		m.inputBuffer = m.completionCandidates[m.completionIndex]
+		m.completionCacheInput = m.inputBuffer
 		return
 	}
 
@@ -216,6 +217,7 @@ func (m *Model) handleTabCompletion(reverse bool) {
 	if len(candidates) == 1 {
 		// Single match - auto-complete
 		m.inputBuffer = candidates[0]
+		m.completionCacheInput = m.inputBuffer
 		m.clearCompletions()
 		return
 	}
@@ -223,6 +225,7 @@ func (m *Model) handleTabCompletion(reverse bool) {
 	// Multiple matches - fill common prefix and show candidates
 	if commonPrefix != "" && len(commonPrefix) > len(m.inputBuffer) {
 		m.inputBuffer = commonPrefix
+		m.completionCacheInput = m.inputBuffer
 	}
 
 	// Store candidates for display and cycling
@@ -233,11 +236,19 @@ func (m *Model) handleTabCompletion(reverse bool) {
 func (m *Model) clearCompletions() {
 	m.completionCandidates = nil
 	m.completionIndex = -1
+	m.completionCacheInput = ""
 }
 
 // refreshCompletions recalculates completions based on current input (for filter-as-you-type)
+// Uses caching to avoid repeated os.ReadDir calls for the same input
 func (m *Model) refreshCompletions() {
+	// Skip if input hasn't changed
+	if m.inputBuffer == m.completionCacheInput {
+		return
+	}
+
 	candidates, _ := getCompletions(m.inputBuffer, m.tree.Root.Path)
+	m.completionCacheInput = m.inputBuffer
 
 	if len(candidates) == 0 {
 		m.clearCompletions()
