@@ -21,8 +21,8 @@
 ```bash
 # 内部で実行
 git status                      # 未コミット変更確認
-git log main..HEAD              # コミット確認
-git diff main...HEAD            # 差分確認
+git log @{upstream}..HEAD       # コミット確認（base ブランチ自動検出）
+git diff @{upstream}...HEAD     # 差分確認
 gh pr create --title "..." --body "..."
 ```
 
@@ -91,7 +91,8 @@ gh pr comment <番号> --body "<内容>"
 ```bash
 # 内部で実行
 gh pr view --json number,mergeCommit -q '.mergeCommit.oid'
-git revert <マージコミット>
+# マージコミットの場合は -m 1 が必要
+git revert -m 1 <マージコミット>
 # 新しいリバート PR を作成
 ```
 
