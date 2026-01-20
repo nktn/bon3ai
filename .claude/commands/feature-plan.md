@@ -1,4 +1,4 @@
-# /plan - Feature Planning
+# /feature-plan - Feature Planning
 
 Plan the implementation of a new feature or change.
 
@@ -88,7 +88,7 @@ Plan the implementation of a new feature or change.
 ## Usage
 
 ```
-/plan Add bookmark feature
-/plan Implement fuzzy file search
-/plan Add split pane view
+/feature-plan Add bookmark feature
+/feature-plan Implement fuzzy file search
+/feature-plan Add split pane view
 ```

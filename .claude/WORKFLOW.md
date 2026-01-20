@@ -7,7 +7,7 @@ Claude Code を活用した bon3ai 開発ワークフロー。
 | パターン | コマンド | 特徴 |
 |---------|---------|------|
 | **自動オーケストレーション** | `/dev` | エージェント並列実行、全ステップ自動連携 |
-| **手動** | `/plan` → `/tdd` → `/impl` → ... | ステップごとに確認・調整可能 |
+| **手動** | `/feature-plan` → `/tdd` → `/impl` → ... | ステップごとに確認・調整可能 |
 
 ### 自動オーケストレーション (`/dev`) - 推奨
 
@@ -25,7 +25,7 @@ Claude Code を活用した bon3ai 開発ワークフロー。
 ### 手動パターン
 
 ```bash
-/plan → /tdd → /impl → /build-fix → /update-docs → /pr → /codex → (修正 → /codex)
+/feature-plan → /tdd → /impl → /build-fix → /update-docs → /pr → /codex → (修正 → /codex)
 ```
 
 各ステップで結果を確認しながら進める。
@@ -50,7 +50,7 @@ Claude Code を活用した bon3ai 開発ワークフロー。
        │
        ▼
   ┌─────────┐
-  │  /plan  │ ─── 複雑な機能は計画から
+  │  /feature-plan  │ ─── 複雑な機能は計画から
   └────┬────┘
        │
        ▼
@@ -112,7 +112,7 @@ Claude Code を活用した bon3ai 開発ワークフロー。
 
 ```bash
 # Step 1: 計画
-/plan Add bookmark feature for frequently accessed directories
+/feature-plan Add bookmark feature for frequently accessed directories
 
 # Step 2: テスト作成
 /tdd Implement bookmark save/load
@@ -221,7 +221,7 @@ make test
 /opentui keyboard handling
 
 # Step 1: 計画
-/plan Add ModeFilter for filtering file list
+/feature-plan Add ModeFilter for filtering file list
 
 # Step 2: TDD
 /tdd Implement filter mode state transitions
@@ -266,7 +266,7 @@ go test -cpuprofile=cpu.out -bench .
 go tool pprof cpu.out
 
 # Step 2: 改善計画
-/plan Optimize file tree loading performance
+/feature-plan Optimize file tree loading performance
 
 # Step 3: 実装
 /impl Optimize file tree loading
@@ -395,7 +395,7 @@ OpenTUI のパターンを Go/Bubble Tea に翻訳する際の対応:
 
 | 状況 | コマンド |
 |------|----------|
-| 何から始めるか分からない | `/plan` |
+| 何から始めるか分からない | `/feature-plan` |
 | テストを先に書きたい | `/tdd` |
 | 計画・テスト後に実装 | `/impl` |
 | ビルドが通らない | `/build-fix` |
