@@ -6,7 +6,7 @@
 
 ```
 /dev <機能の説明>
-/dev --mode=feature <説明>
+/dev --mode=feature <説明>    # デフォルト (tui-designer 含む)
 /dev --mode=fix <説明>
 /dev --mode=refactor <説明>
 ```
@@ -16,49 +16,68 @@
 ### feature (デフォルト): 新機能開発
 
 ```
-並列実行:
-├─ [planner]     → 実装計画作成
-├─ [architect]   → アーキテクチャ影響分析
-└─ [tdd-guide]   → テストケース設計
+Phase 1: 並列分析
+├─ [planner]      → 実装計画作成
+├─ [tui-designer] → OpenTUI パターン参照・UI 設計
+├─ [architect]    → アーキテクチャ影響分析
+└─ [tdd-guide]    → テストケース設計
 
 ↓ 結果を統合
 
-順次実行:
-├─ テスト作成 (RED)
-├─ 実装 (GREEN)
-├─ リファクタリング (REFACTOR)
-└─ ドキュメント更新
+Phase 2: 順次実行
+├─ テスト作成 (/tdd)
+├─ 実装 (/impl)
+├─ ビルド確認 (/build-fix)
+└─ ドキュメント更新 (/update-docs)
+
+Phase 3: レビュー
+├─ /pr
+├─ コードレビュー (/codex)
+└─ /pr comment (意思決定) → 修正 → /codex
 ```
 
 ### fix: バグ修正
 
 ```
-並列実行:
+Phase 1: 並列分析
+├─ [tui-designer]   → UI パターン参照（UI バグの場合）
 ├─ [tdd-guide]      → 回帰テスト設計
 └─ [build-fixer]    → 関連エラー確認
 
 ↓ 結果を統合
 
-順次実行:
-├─ 回帰テスト作成
-├─ 修正実装
-└─ 全テスト実行
+Phase 2: 順次実行
+├─ 回帰テスト作成 (/tdd)
+├─ 修正実装 (/impl)
+├─ ビルド確認 (/build-fix)
+└─ 全テスト実行 (make test)
+
+Phase 3: レビュー
+├─ /pr
+├─ コードレビュー (/codex)
+└─ /pr comment (意思決定) → 修正 → /codex
 ```
 
 ### refactor: リファクタリング
 
 ```
-並列実行:
+Phase 1: 並列分析
+├─ [tui-designer]      → UI パターン参照（改善提案）
 ├─ [architect]         → 構造分析
 ├─ [refactor-cleaner]  → 改善ポイント特定
-└─ coverage 分析
+└─ coverage 分析 (/test-coverage)
 
 ↓ 結果を統合
 
-順次実行:
-├─ 段階的リファクタリング
-├─ テスト確認
-└─ ドキュメント更新
+Phase 2: 順次実行
+├─ 段階的リファクタリング (/refactor-clean)
+├─ テスト確認 (make test)
+└─ ドキュメント更新 (/update-codemaps)
+
+Phase 3: レビュー
+├─ /pr
+├─ コードレビュー (/codex)
+└─ /pr comment (意思決定) → 修正 → /codex
 ```
 
 ## 実行例
@@ -118,17 +137,21 @@ Claude: 並列でエージェントを起動します...
 | architect | ✅ | No breaking changes |
 | tdd-guide | ✅ | 8 test cases |
 
-### Phase 2: 統合計画
-<統合された実装計画>
+### Phase 2: 順次実行
+- [x] テスト作成 (/tdd)
+- [x] 実装 (/impl)
+- [x] ビルド確認 (/build-fix)
+- [x] ドキュメント更新 (/update-docs)
 
-### Phase 3: 実装
-- [ ] Step 1: ...
-- [ ] Step 2: ...
+### Phase 3: レビュー
+- [x] PR 作成
+- [ ] コードレビュー (/codex)
+- [ ] 修正対応
 
-### Phase 4: 検証
-- [ ] All tests pass
-- [ ] Code review
-- [ ] Docs updated
+### Summary
+- Tests: 8 passed
+- Files changed: 4
+- PR: #123
 ```
 
 ## 中断と再開

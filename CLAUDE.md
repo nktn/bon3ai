@@ -82,11 +82,15 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 - `.claude/skills/dev/SKILL.md`: **Orchestrated development (`/dev`)** ← 推奨
 - `.claude/skills/codex/SKILL.md`: Codex CLI integration (`/codex`)
 - `.claude/skills/tdd/SKILL.md`: TDD workflow (`/tdd`)
+- `.claude/skills/opentui/SKILL.md`: OpenTUI development (`/opentui`)
 - `.claude/commands/dev.md`: Multi-agent orchestration (`/dev`)
 - `.claude/commands/plan.md`: Feature planning (`/plan`)
 - `.claude/commands/tdd.md`: Test-driven development (`/tdd`)
+- `.claude/commands/impl.md`: Implementation (`/impl`)
+- `.claude/commands/opentui.md`: OpenTUI TUI framework (`/opentui`)
 - `.claude/commands/build-fix.md`: Build error fix (`/build-fix`)
 - `.claude/commands/refactor-clean.md`: Refactor & cleanup (`/refactor-clean`)
+- `.claude/commands/pr.md`: Pull Request 作成 (`/pr`)
 - `.claude/commands/test-coverage.md`: Coverage analysis (`/test-coverage`)
 - `.claude/commands/update-docs.md`: Documentation sync (`/update-docs`)
 - `.claude/commands/update-codemaps.md`: Code map update (`/update-codemaps`)
@@ -98,3 +102,4 @@ The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
 - `.claude/agents/planner.md`: 実装計画の作成
 - `.claude/agents/refactor-cleaner.md`: リファクタリング・整理
 - `.claude/agents/tdd-guide.md`: テスト駆動開発ガイド
+- `.claude/agents/tui-designer.md`: TUI コンポーネント設計 (OpenTUI 参照)
