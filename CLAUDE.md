@@ -26,6 +26,22 @@ go test -v -run TestName      # Run specific test
 make clean
 ```
 
+## VCS Workflow (重要)
+
+**⚠️ mainブランチに直接push禁止 - 必ずPRを経由する**
+
+- **JJ優先**: このリポジトリはJJとGitの両方が有効。JJコマンドを優先して使用する
+- **詳細**: → `.claude/rules/git-workflow.md` を参照
+
+### クイックリファレンス
+
+| 操作 | JJ (優先) | Git (フォールバック) |
+|------|-----------|---------------------|
+| 新規開始 | `jj new main` | `git checkout -b branch` |
+| コミット | `jj describe -m "msg"` | `git commit -m "msg"` |
+| プッシュ | `jj bookmark set name && jj git push --bookmark name` | `git push -u origin branch` |
+| PR作成 | `gh pr create` | `gh pr create` |
+
 ## Architecture
 
 The application follows the Elm architecture (Model-View-Update) via Bubble Tea:
