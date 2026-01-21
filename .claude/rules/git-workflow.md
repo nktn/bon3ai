@@ -1,4 +1,28 @@
-# Git Workflow
+# VCS Workflow
+
+## JJ (Jujutsu) 優先
+
+このリポジトリは JJ と Git の両方が有効。**JJ コマンドを優先して使用する。**
+
+### コマンド対応表
+
+| 操作 | JJ (優先) | Git (フォールバック) |
+|------|-----------|---------------------|
+| 状態確認 | `jj status` | `git status` |
+| 差分確認 | `jj diff` | `git diff` |
+| ログ確認 | `jj log` | `git log` |
+| コミット | `jj commit -m "msg"` | `git commit -m "msg"` |
+| 説明変更 | `jj describe -m "msg"` | `git commit --amend` |
+| 新しい変更 | `jj new` | - |
+| ブランチ作成 | `jj new main -m "desc"` | `git checkout -b branch` |
+| プッシュ | `jj git push` | `git push` |
+| プル | `jj git fetch && jj rebase -d main@origin` | `git pull` |
+| ブックマーク | `jj bookmark set name` | `git branch name` |
+
+### JJ 使用時の注意
+
+- `jj git push` 前に `jj bookmark set <name>` でブックマーク設定が必要
+- GitHub PR作成には `gh` コマンドを併用
 
 ## Commit Message Format
 
@@ -42,10 +66,12 @@ chore/<task-description>
 
 ## Pull Request Process
 
-1. **Examine full diff**: Use `git diff main...HEAD` to review all changes
+1. **Examine full diff**: Use `jj diff -r main..@` to review all changes
 2. **Write summary**: Bullet points of key changes
 3. **Include test plan**: Checklist of manual testing steps
 4. **Request review**: Use `/codex` for automated code review
+5. **Push**: `jj bookmark set <branch-name> && jj git push`
+6. **Create PR**: `gh pr create`
 
 ### PR Template
 
