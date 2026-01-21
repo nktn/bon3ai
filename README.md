@@ -152,11 +152,15 @@ Priority: If both `.jj` and `.git` exist, Jujutsu is used (common for jj users w
 
 ## Requirements
 
-- Go 1.24+
-- Terminal with UTF-8 support
-- [Nerd Font](https://www.nerdfonts.com/) (recommended for icons)
-- Git or Jujutsu (optional, for VCS features)
-- [chafa](https://hpjansson.org/chafa/) (optional, for high-quality image preview; ASCII art fallback available)
+- **macOS** (Windows/Linux not tested)
+- [Ghostty](https://ghostty.org/) terminal (only tested environment)
+- Go 1.24+ (for building)
+
+### Optional
+
+- [Nerd Font](https://www.nerdfonts.com/) - for icons
+- Git or Jujutsu - for VCS features
+- [chafa](https://hpjansson.org/chafa/) - for high-quality image preview
 
 ## License
 
