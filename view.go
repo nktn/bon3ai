@@ -12,6 +12,12 @@ import (
 
 // View implements tea.Model
 func (m Model) View() string {
+	// During external process execution, return empty to prevent flicker
+	// See: https://github.com/charmbracelet/bubbletea/issues/431
+	if m.execMode {
+		return ""
+	}
+
 	// Preview mode has its own view
 	if m.inputMode == ModePreview {
 		return m.renderPreview()

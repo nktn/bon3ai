@@ -48,6 +48,9 @@ func (m InputMode) String() string {
 // tickMsg is sent periodically to check the drop buffer
 type tickMsg time.Time
 
+// execDoneMsg signals that external process execution has completed
+type execDoneMsg struct{}
+
 // Styles
 var (
 	selectedStyle = lipgloss.NewStyle().
@@ -197,6 +200,9 @@ type Model struct {
 	// Tab completion (ModeGoTo)
 	completionCandidates []string // Completion candidates
 	completionIndex      int      // Selected candidate (-1 = none)
+
+	// External process execution (tmux image preview)
+	execMode bool // When true, View() returns empty to prevent flicker
 	completionCacheInput string   // Cached input for completion
 }
 

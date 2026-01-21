@@ -58,9 +58,11 @@ func (m *Model) openPreview() tea.Cmd {
 		m.imageFormat = imgFormat
 		m.imageSize = imgSize
 
-		// In tmux, use tea.Exec to run chafa directly (bypasses Bubble Tea rendering)
+		// In tmux, use tea.ExecProcess to run chafa directly (bypasses Bubble Tea rendering
+		// which corrupts tmux passthrough escape sequences)
 		if os.Getenv("TMUX") != "" {
 			if _, err := exec.LookPath("chafa"); err == nil {
+				m.execMode = true // Prevent View() from rendering during exec
 				return m.execChafaPreview(node.Path)
 			}
 		}
@@ -259,13 +261,15 @@ func (m *Model) execChafaPreview(path string) tea.Cmd {
 	// Use shell script with environment variables to prevent injection attacks.
 	// Data is passed via env vars ($INFO, $IMAGE_PATH) instead of string interpolation.
 	// Title uses cyan background (matching previewTitleStyle).
-	script := fmt.Sprintf(`clear; printf '\033[46;30m%%s\033[0m\n\n' "$INFO"; chafa --format kitty --passthrough tmux --animate off --size %dx%d -- "$IMAGE_PATH"; printf '\n\033[90mPress any key to close...\033[0m'; read -n 1`,
+	// Use ANSI escape sequences instead of 'clear' command to reduce flicker:
+	// \033[?25l = hide cursor, \033[H = home, \033[2J = clear screen
+	script := fmt.Sprintf(`printf '\033[?25l\033[H\033[2J\033[46;30m%%s\033[0m\n\n' "$INFO"; chafa --format kitty --passthrough tmux --animate off --size %dx%d -- "$IMAGE_PATH"; printf '\n\033[90mPress any key to close...\033[0m'; read -n 1; printf '\033[?25h'`,
 		width, height)
 
 	cmd := exec.Command("bash", "-c", script)
 	cmd.Env = append(os.Environ(), "INFO="+info, "IMAGE_PATH="+path)
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
-		return tea.ClearScreen // Return to normal view after chafa exits
+		return execDoneMsg{} // Signal exec completion to reset execMode
 	})
 }
 
@@ -284,7 +288,7 @@ func (m *Model) loadImagePreview(path string) ([]string, error) {
 	}
 
 	// Try chafa first (high quality with Kitty protocol)
-	// Note: tmux uses execChafaPreview instead, so this is for non-tmux only
+	// Note: tmux uses execChafaPreview instead (View() corrupts tmux passthrough)
 	if _, err := exec.LookPath("chafa"); err == nil {
 		args := []string{
 			"--format", "kitty",
