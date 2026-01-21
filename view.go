@@ -227,19 +227,18 @@ func (m Model) renderNode(node *FileNode, isSelected bool) string {
 		markIndicator = "*"
 	}
 
-	// Icon
+	// Icon (uses centralized icons from icons.go)
 	var icon string
 	if node.IsGhost {
-		// Ghost file (deleted) - use special icon
-		icon = ""
+		icon = icons.Ghost
 	} else if node.IsDir {
 		if node.Expanded {
-			icon = ""
+			icon = icons.FolderOpen
 		} else {
-			icon = ""
+			icon = icons.FolderClosed
 		}
 	} else {
-		icon = getFileIcon(node.Name)
+		icon = getFileIconByExt(node.Name)
 	}
 
 	// Name with strikethrough for ghost files
@@ -668,10 +667,10 @@ func (m Model) renderConfirmPopup() string {
 		var icon string
 		var style lipgloss.Style
 		if isDir {
-			icon = ""
+			icon = icons.FolderClosed
 			style = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
 		} else {
-			icon = ""
+			icon = icons.File
 			style = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 		}
 
@@ -704,78 +703,6 @@ func (m Model) renderConfirmPopup() string {
 	popup := borderStyle.Render(content)
 
 	return popup
-}
-
-// File icon mappings
-var (
-	// Special filename icons
-	specialFileIcons = map[string]string{
-		".gitignore":    "",
-		".gitattributes": "",
-		".gitmodules":   "",
-	}
-
-	// Extension to icon mapping
-	extIcons = map[string]string{
-		"go":   "",
-		"rs":   "",
-		"py":   "",
-		"js":   "",
-		"jsx":  "",
-		"ts":   "",
-		"tsx":  "",
-		"html": "",
-		"css":  "",
-		"scss": "",
-		"sass": "",
-		"json": "",
-		"toml": "",
-		"yaml": "",
-		"yml":  "",
-		"md":   "",
-		"txt":  "",
-		"lock": "",
-		"png":  "",
-		"jpg":  "",
-		"jpeg": "",
-		"gif":  "",
-		"svg":  "",
-		"ico":  "",
-		"mp3":  "",
-		"wav":  "",
-		"flac": "",
-		"mp4":  "",
-		"mkv":  "",
-		"avi":  "",
-		"zip":  "",
-		"tar":  "",
-		"gz":   "",
-		"rar":  "",
-		"pdf":  "",
-		"doc":  "",
-		"docx": "",
-		"sh":   "",
-		"bash": "",
-		"zsh":  "",
-	}
-)
-
-func getFileIcon(name string) string {
-	// Check for special filenames first
-	lowerName := strings.ToLower(name)
-	if icon, ok := specialFileIcons[lowerName]; ok {
-		return icon
-	}
-
-	// Check extension
-	if idx := strings.LastIndex(name, "."); idx != -1 {
-		ext := strings.ToLower(name[idx+1:])
-		if icon, ok := extIcons[ext]; ok {
-			return icon
-		}
-	}
-
-	return ""
 }
 
 // formatFileSize converts bytes to human-readable format
