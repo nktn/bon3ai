@@ -23,8 +23,20 @@
 git status                      # 未コミット変更確認
 git log @{upstream}..HEAD       # コミット確認（base ブランチ自動検出）
 git diff @{upstream}...HEAD     # 差分確認
-gh pr create --title "..." --body "..."
+gh pr create --title "..." --body "..." --label "<auto>" --assignee "@me"
 ```
+
+**ラベル自動付与:**
+
+コミットタイプから自動判定:
+
+| Commit Type | Label |
+|-------------|-------|
+| feat | enhancement |
+| fix | bug |
+| docs | documentation |
+| refactor | refactor |
+| chore, perf, ci, test | enhancement |
 
 **未コミット変更がある場合:**
 1. 変更内容を表示（変更ファイル・新規ファイル一覧）
