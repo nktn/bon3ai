@@ -8,8 +8,7 @@ A simple TUI file explorer built in Go with Vim keybinds and Git/Jujutsu status 
 
 A file tree for vibe coding in the terminal.
 
-When coding with Claude Code or Codex CLI, you start wanting a file tree like VSCode has.
-If you're going to live in the terminal, you deserve a terminal-native file explorer.
+When coding with Claude Code or Codex CLI, I wanted a file tree like VSCode has.
 
 - Fast navigation with Vim keybindings
 - Git/JJ status at a glance
