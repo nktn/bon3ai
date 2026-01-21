@@ -322,7 +322,7 @@ func (m Model) updatePreviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.previewScroll < 0 {
 			m.previewScroll = 0
 		}
-	case "pgdown", "f", " ":
+	case "pgdown", "f", "space", " ":
 		maxScroll := contentLen - visibleHeight
 		if maxScroll < 0 {
 			maxScroll = 0
