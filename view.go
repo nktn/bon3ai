@@ -6,26 +6,35 @@ import (
 	"path/filepath"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/x/ansi"
 )
 
+// newView creates a tea.View with AltScreen and MouseMode enabled
+func newView(content string) tea.View {
+	v := tea.NewView(content)
+	v.AltScreen = true
+	v.MouseMode = tea.MouseModeCellMotion
+	return v
+}
+
 // View implements tea.Model
-func (m Model) View() string {
+func (m Model) View() tea.View {
 	// During external process execution, return empty to prevent flicker
 	// See: https://github.com/charmbracelet/bubbletea/issues/431
 	if m.execMode {
-		return ""
+		return newView("")
 	}
 
 	// Preview mode has its own view
 	if m.inputMode == ModePreview {
-		return m.renderPreview()
+		return newView(m.renderPreview())
 	}
 
 	// Confirm delete mode - show popup with tree in background
 	if m.inputMode == ModeConfirmDelete {
-		return m.renderConfirmView()
+		return newView(m.renderConfirmView())
 	}
 
 	var b strings.Builder
@@ -73,7 +82,7 @@ func (m Model) View() string {
 		b.WriteString("\n" + popup)
 	}
 
-	return b.String()
+	return newView(b.String())
 }
 
 func (m Model) renderPreview() string {

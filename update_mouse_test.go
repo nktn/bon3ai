@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // ========================================
@@ -36,9 +36,8 @@ func TestUpdateMouseEvent_WheelUp(t *testing.T) {
 	model.selected = 5
 
 	// Simulate wheel up
-	msg := tea.MouseMsg{
-		Button: tea.MouseButtonWheelUp,
-		Action: tea.MouseActionPress,
+	msg := tea.MouseWheelMsg{
+		Button: tea.MouseWheelUp,
 	}
 
 	newModel, _ := model.Update(msg)
@@ -71,9 +70,8 @@ func TestUpdateMouseEvent_WheelDown(t *testing.T) {
 	model.selected = 0
 
 	// Simulate wheel down
-	msg := tea.MouseMsg{
-		Button: tea.MouseButtonWheelDown,
-		Action: tea.MouseActionPress,
+	msg := tea.MouseWheelMsg{
+		Button: tea.MouseWheelDown,
 	}
 
 	newModel, _ := model.Update(msg)
@@ -107,9 +105,8 @@ func TestUpdateMouseEvent_LeftClick(t *testing.T) {
 	model.height = 20 // Enough height for display
 
 	// Simulate left click on row 3 (Y=4 because Y=0 is title, Y=1 is first item)
-	msg := tea.MouseMsg{
-		Button: tea.MouseButtonLeft,
-		Action: tea.MouseActionPress,
+	msg := tea.MouseClickMsg{
+		Button: tea.MouseLeft,
 		X:      10,
 		Y:      3, // Click on row 2 (0-indexed from after title)
 	}
@@ -154,9 +151,8 @@ func TestUpdateMouseEvent_DoubleClick(t *testing.T) {
 	}
 
 	// First click
-	msg := tea.MouseMsg{
-		Button: tea.MouseButtonLeft,
-		Action: tea.MouseActionPress,
+	msg := tea.MouseClickMsg{
+		Button: tea.MouseLeft,
 		X:      10,
 		Y:      subDirIndex + 1, // +1 for title row
 	}
@@ -170,9 +166,8 @@ func TestUpdateMouseEvent_DoubleClick(t *testing.T) {
 	// Second click (double-click) - need to be within 400ms
 	time.Sleep(50 * time.Millisecond) // Small delay to simulate real double-click
 
-	msg2 := tea.MouseMsg{
-		Button: tea.MouseButtonLeft,
-		Action: tea.MouseActionPress,
+	msg2 := tea.MouseClickMsg{
+		Button: tea.MouseLeft,
 		X:      10,
 		Y:      subDirIndex + 1,
 	}
@@ -215,9 +210,8 @@ func TestUpdateMouseEvent_WheelDebounce(t *testing.T) {
 	model.lastScrollTime = time.Now() // Set recent scroll time
 
 	// Simulate rapid wheel up (should be debounced)
-	msg := tea.MouseMsg{
-		Button: tea.MouseButtonWheelUp,
-		Action: tea.MouseActionPress,
+	msg := tea.MouseWheelMsg{
+		Button: tea.MouseWheelUp,
 	}
 
 	newModel, _ := model.Update(msg)
@@ -249,9 +243,8 @@ func TestUpdateMouseEvent_ClickOutOfBounds(t *testing.T) {
 	model.height = 20
 
 	// Click on a row that doesn't exist (beyond tree length)
-	msg := tea.MouseMsg{
-		Button: tea.MouseButtonLeft,
-		Action: tea.MouseActionPress,
+	msg := tea.MouseClickMsg{
+		Button: tea.MouseLeft,
 		X:      10,
 		Y:      100, // Way beyond tree length
 	}
@@ -284,9 +277,8 @@ func TestUpdateMouseEvent_ClickOnTitleRow(t *testing.T) {
 	model.height = 20
 
 	// Click on title row (Y=0)
-	msg := tea.MouseMsg{
-		Button: tea.MouseButtonLeft,
-		Action: tea.MouseActionPress,
+	msg := tea.MouseClickMsg{
+		Button: tea.MouseLeft,
 		X:      10,
 		Y:      0,
 	}
@@ -318,11 +310,9 @@ func TestUpdateMouseEvent_MotionIgnored(t *testing.T) {
 	model.selected = 0
 
 	// Motion event should be ignored
-	msg := tea.MouseMsg{
-		Button: tea.MouseButtonLeft,
-		Action: tea.MouseActionMotion,
-		X:      10,
-		Y:      5,
+	msg := tea.MouseMotionMsg{
+		X: 10,
+		Y: 5,
 	}
 
 	newModel, _ := model.Update(msg)
@@ -353,9 +343,8 @@ func TestUpdateMouseEvent_NotInNormalMode(t *testing.T) {
 	model.inputMode = ModeSearch // Not in normal mode
 
 	// Mouse event should be ignored when not in normal mode
-	msg := tea.MouseMsg{
-		Button: tea.MouseButtonLeft,
-		Action: tea.MouseActionPress,
+	msg := tea.MouseClickMsg{
+		Button: tea.MouseLeft,
 		X:      10,
 		Y:      2,
 	}
