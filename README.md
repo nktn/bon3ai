@@ -93,6 +93,7 @@ bon3 ~/Documents  # Specific directory
 | `.` | Toggle hidden files |
 | `R` / `F5` | Reload tree |
 | `W` | Toggle file watching |
+| `gv` | Cycle VCS type (Auto → JJ → Git) |
 
 ### Preview Mode
 
@@ -145,10 +146,16 @@ bon3 ~/Documents  # Specific directory
 
 bon3ai automatically detects the version control system and shows status:
 
-- **Git**: Shows branch name in status bar (e.g., ` main`)
-- **Jujutsu (jj)**: Shows change ID and bookmark (e.g., ` @hogehoge (main)`)
+- **Git**: Shows branch name in status bar (e.g., `[Auto]  main`)
+- **Jujutsu (jj)**: Shows change ID and bookmark (e.g., `[Auto]  @hogehoge (main)`)
 
 Priority: If both `.jj` and `.git` exist, Jujutsu is used (common for jj users working with GitHub).
+
+### Manual VCS Switching
+
+Press `gv` to cycle through VCS types: **Auto → JJ → Git → Auto**
+
+Useful when you want to see Git status in a JJ-managed repository.
 
 ## Requirements
 

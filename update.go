@@ -58,8 +58,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.watcherEnabled {
 			m.tree.Refresh()
 
-			// Refresh VCS status synchronously
-			m.vcsRepo.Refresh(m.tree.Root.Path)
+			// Respect forced VCS type, only re-detect in Auto mode
+			if m.vcsForceType == VCSTypeAuto {
+				// Re-detect VCS type in case it changed (e.g., jj init, git init)
+				newVCS := NewVCSRepo(m.tree.Root.Path)
+				if newVCS.GetType() != m.vcsRepo.GetType() {
+					m.vcsRepo = newVCS
+				} else {
+					m.vcsRepo.Refresh(m.tree.Root.Path)
+				}
+			} else {
+				// Keep forced type, just refresh
+				m.vcsRepo.Refresh(m.tree.Root.Path)
+			}
 
 			// Add ghost nodes for deleted files
 			m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
@@ -100,6 +111,10 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		case "n":
 			// gn -> go to new path
 			m.startGoTo()
+			return m, nil
+		case "v":
+			// gv -> cycle VCS type
+			m.cycleVCSType()
 			return m, nil
 		default:
 			// Any other key cancels g and is ignored
@@ -699,4 +714,37 @@ func (m *Model) refreshTreeAndVCS() {
 	m.tree.Refresh()
 	m.vcsRepo.Refresh(m.tree.Root.Path)
 	m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
+}
+
+// cycleVCSType cycles through VCS types: Auto → JJ → Git → Auto
+func (m *Model) cycleVCSType() {
+	switch m.vcsForceType {
+	case VCSTypeAuto:
+		m.vcsForceType = VCSTypeJJ
+	case VCSTypeJJ:
+		m.vcsForceType = VCSTypeGit
+	case VCSTypeGit:
+		m.vcsForceType = VCSTypeAuto
+	}
+
+	// Recreate VCS repo with new type
+	m.vcsRepo = NewVCSRepoWithType(m.tree.Root.Path, m.vcsForceType)
+	m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
+
+	// Show message with current type
+	if !m.vcsRepo.IsInsideRepo() {
+		m.message = "VCS: None (no repository found)"
+		return
+	}
+
+	typeName := m.vcsForceType.String()
+	actualType := m.vcsRepo.GetType().String()
+	if m.vcsForceType == VCSTypeAuto {
+		m.message = fmt.Sprintf("VCS: %s (detected: %s)", typeName, actualType)
+	} else if typeName != actualType {
+		// Fallback occurred (e.g., JJ forced but not available)
+		m.message = fmt.Sprintf("VCS: %s (fallback: %s)", typeName, actualType)
+	} else {
+		m.message = fmt.Sprintf("VCS: %s", typeName)
+	}
 }

@@ -204,6 +204,9 @@ type Model struct {
 	// External process execution (tmux image preview)
 	execMode bool // When true, View() returns empty to prevent flicker
 	completionCacheInput string   // Cached input for completion
+
+	// VCS type override
+	vcsForceType VCSType // 0 = Auto (default), VCSTypeJJ, VCSTypeGit
 }
 
 // NewModel creates a new Model

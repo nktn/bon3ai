@@ -17,8 +17,9 @@ func TestParseJJStatus(t *testing.T) {
 		{'D', VCSStatusDeleted},
 		{'R', VCSStatusRenamed},
 		{'C', VCSStatusConflict},
+		{'?', VCSStatusUntracked},
 		{' ', VCSStatusNone},
-		{'?', VCSStatusNone},
+		{'X', VCSStatusNone},
 	}
 
 	for _, tt := range tests {

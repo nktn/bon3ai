@@ -40,10 +40,22 @@ type DiffLine struct {
 type VCSType int
 
 const (
-	VCSTypeNone VCSType = iota
+	VCSTypeAuto VCSType = iota // Auto-detect (default, zero value)
 	VCSTypeGit
 	VCSTypeJJ
 )
+
+// String returns a string representation of VCSType
+func (t VCSType) String() string {
+	switch t {
+	case VCSTypeGit:
+		return "Git"
+	case VCSTypeJJ:
+		return "JJ"
+	default:
+		return "Auto"
+	}
+}
 
 // VCSRepo is the interface for version control system repositories
 type VCSRepo interface {
@@ -82,6 +94,24 @@ func NewVCSRepo(path string) VCSRepo {
 
 	// Fall back to git
 	return NewGitRepo(path)
+}
+
+// NewVCSRepoWithType creates a VCSRepo with the specified type
+// If forceType is VCSTypeAuto, auto-detection is used
+func NewVCSRepoWithType(path string, forceType VCSType) VCSRepo {
+	switch forceType {
+	case VCSTypeJJ:
+		if hasJJRepo(path) && hasJJCommand() {
+			return NewJJRepo(path)
+		}
+		// Fall back to Git if JJ is not available
+		return NewGitRepo(path)
+	case VCSTypeGit:
+		return NewGitRepo(path)
+	default:
+		// Auto-detect
+		return NewVCSRepo(path)
+	}
 }
 
 // hasJJRepo checks if the path is inside a jj repository

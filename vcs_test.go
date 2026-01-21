@@ -106,7 +106,7 @@ func TestVCSStatus_Constants(t *testing.T) {
 func TestVCSType_Constants(t *testing.T) {
 	// Verify VCS type constants are distinct
 	types := []VCSType{
-		VCSTypeNone,
+		VCSTypeAuto,
 		VCSTypeGit,
 		VCSTypeJJ,
 	}
