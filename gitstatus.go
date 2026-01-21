@@ -254,19 +254,30 @@ func parseGitDiff(output string) []DiffLine {
 	lines := strings.Split(output, "\n")
 
 	var currentNewLine int
-	var deletedCount int   // Number of consecutive deleted lines
+	var deletedCount int      // Number of consecutive deleted lines
 	var hunkHasAdditions bool // Whether current hunk has any additions
+	var hunkNewCount int      // Number of lines added in current hunk (from header)
 
 	for _, line := range lines {
 		// Check for hunk header
 		if matches := hunkRegex.FindStringSubmatch(line); matches != nil {
 			// Handle pending deletion-only hunk (deletions without any additions)
 			if deletedCount > 0 && !hunkHasAdditions && currentNewLine > 0 {
-				result = append(result, DiffLine{Line: currentNewLine, Type: DiffLineDeleted})
+				// For deletion-only hunks (+n,0), marker should be at n+1 (next line after gap)
+				markerLine := currentNewLine
+				if hunkNewCount == 0 {
+					markerLine = currentNewLine + 1
+				}
+				result = append(result, DiffLine{Line: markerLine, Type: DiffLineDeleted})
 			}
-			// Parse new file start line
+			// Parse new file start line and count
 			newStart, _ := strconv.Atoi(matches[3])
+			newCount := 1 // default if not specified
+			if matches[4] != "" {
+				newCount, _ = strconv.Atoi(matches[4])
+			}
 			currentNewLine = newStart
+			hunkNewCount = newCount
 			deletedCount = 0
 			hunkHasAdditions = false
 			continue
@@ -311,7 +322,12 @@ func parseGitDiff(output string) []DiffLine {
 
 	// Handle trailing deletion-only hunk
 	if deletedCount > 0 && !hunkHasAdditions && currentNewLine > 0 {
-		result = append(result, DiffLine{Line: currentNewLine, Type: DiffLineDeleted})
+		// For deletion-only hunks (+n,0), marker should be at n+1 (next line after gap)
+		markerLine := currentNewLine
+		if hunkNewCount == 0 {
+			markerLine = currentNewLine + 1
+		}
+		result = append(result, DiffLine{Line: markerLine, Type: DiffLineDeleted})
 	}
 
 	return result

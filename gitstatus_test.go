@@ -410,7 +410,7 @@ func TestParseGitDiff(t *testing.T) {
 -deleted line 1
 -deleted line 2`,
 			expected: []DiffLine{
-				{Line: 4, Type: DiffLineDeleted},
+				{Line: 5, Type: DiffLineDeleted}, // marker at n+1 (next line after gap)
 			},
 		},
 		{
@@ -499,7 +499,7 @@ func TestParseGitDiff(t *testing.T) {
 @@ -20,0 +18,1 @@
 +added`,
 			expected: []DiffLine{
-				{Line: 9, Type: DiffLineDeleted},
+				{Line: 10, Type: DiffLineDeleted}, // marker at n+1 (next line after gap)
 				{Line: 18, Type: DiffLineAdded},
 			},
 		},
