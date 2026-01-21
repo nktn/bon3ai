@@ -4,6 +4,20 @@ A simple TUI file explorer built in Go with Vim keybinds and Git/Jujutsu status 
 
 > **Note:** The project is called **bon3ai**, but the command is **`bon3`**
 
+## Concept
+
+A file tree for vibe coding in the terminal.
+
+When coding with Claude Code or Codex CLI, you start wanting a file tree like VSCode has.
+If you're going to live in the terminal, you deserve a terminal-native file explorer.
+
+- Fast navigation with Vim keybindings
+- Git/JJ status at a glance
+- Jump to diffs in preview mode
+- Drag & drop file operations
+
+**Terminal-native file explorer for vibe coding.**
+
 ## Why bon3?
 
 - **Drag & Drop** - Drop files directly into the terminal
@@ -101,6 +115,7 @@ bon3 ~/Documents  # Specific directory
 | `f` / `Space` / `PgDn` | Page down |
 | `b` / `PgUp` | Page up |
 | `g` / `G` | Jump to top / bottom |
+| `n` / `N` | Jump to next / previous change |
 | `q` / `Esc` / `o` | Close preview |
 
 **Preview types:**
