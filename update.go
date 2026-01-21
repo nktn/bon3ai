@@ -101,6 +101,10 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			// gn -> go to new path
 			m.startGoTo()
 			return m, nil
+		case "v":
+			// gv -> cycle VCS type
+			m.cycleVCSType()
+			return m, nil
 		default:
 			// Any other key cancels g and is ignored
 			return m, nil
@@ -699,4 +703,29 @@ func (m *Model) refreshTreeAndVCS() {
 	m.tree.Refresh()
 	m.vcsRepo.Refresh(m.tree.Root.Path)
 	m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
+}
+
+// cycleVCSType cycles through VCS types: Auto → JJ → Git → Auto
+func (m *Model) cycleVCSType() {
+	switch m.vcsForceType {
+	case VCSTypeAuto, VCSTypeNone:
+		m.vcsForceType = VCSTypeJJ
+	case VCSTypeJJ:
+		m.vcsForceType = VCSTypeGit
+	case VCSTypeGit:
+		m.vcsForceType = VCSTypeAuto
+	}
+
+	// Recreate VCS repo with new type
+	m.vcsRepo = NewVCSRepoWithType(m.tree.Root.Path, m.vcsForceType)
+	m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
+
+	// Show message with current type
+	typeName := m.vcsForceType.String()
+	actualType := m.vcsRepo.GetType().String()
+	if m.vcsForceType == VCSTypeAuto {
+		m.message = fmt.Sprintf("VCS: %s (detected: %s)", typeName, actualType)
+	} else {
+		m.message = fmt.Sprintf("VCS: %s", typeName)
+	}
 }

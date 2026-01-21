@@ -43,7 +43,22 @@ const (
 	VCSTypeNone VCSType = iota
 	VCSTypeGit
 	VCSTypeJJ
+	VCSTypeAuto // Auto-detect (default)
 )
+
+// String returns a string representation of VCSType
+func (t VCSType) String() string {
+	switch t {
+	case VCSTypeGit:
+		return "Git"
+	case VCSTypeJJ:
+		return "JJ"
+	case VCSTypeAuto:
+		return "Auto"
+	default:
+		return "None"
+	}
+}
 
 // VCSRepo is the interface for version control system repositories
 type VCSRepo interface {
@@ -82,6 +97,24 @@ func NewVCSRepo(path string) VCSRepo {
 
 	// Fall back to git
 	return NewGitRepo(path)
+}
+
+// NewVCSRepoWithType creates a VCSRepo with the specified type
+// If forceType is VCSTypeAuto or VCSTypeNone, auto-detection is used
+func NewVCSRepoWithType(path string, forceType VCSType) VCSRepo {
+	switch forceType {
+	case VCSTypeJJ:
+		if hasJJRepo(path) && hasJJCommand() {
+			return NewJJRepo(path)
+		}
+		// Fall back to Git if JJ is not available
+		return NewGitRepo(path)
+	case VCSTypeGit:
+		return NewGitRepo(path)
+	default:
+		// Auto-detect
+		return NewVCSRepo(path)
+	}
 }
 
 // hasJJRepo checks if the path is inside a jj repository
