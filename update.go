@@ -714,7 +714,7 @@ func (m *Model) refreshTreeAndVCS() {
 // cycleVCSType cycles through VCS types: Auto → JJ → Git → Auto
 func (m *Model) cycleVCSType() {
 	switch m.vcsForceType {
-	case VCSTypeAuto, VCSTypeNone:
+	case VCSTypeAuto:
 		m.vcsForceType = VCSTypeJJ
 	case VCSTypeJJ:
 		m.vcsForceType = VCSTypeGit
@@ -727,6 +727,11 @@ func (m *Model) cycleVCSType() {
 	m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())
 
 	// Show message with current type
+	if !m.vcsRepo.IsInsideRepo() {
+		m.message = "VCS: None (no repository found)"
+		return
+	}
+
 	typeName := m.vcsForceType.String()
 	actualType := m.vcsRepo.GetType().String()
 	if m.vcsForceType == VCSTypeAuto {

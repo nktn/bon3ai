@@ -40,10 +40,9 @@ type DiffLine struct {
 type VCSType int
 
 const (
-	VCSTypeNone VCSType = iota
+	VCSTypeAuto VCSType = iota // Auto-detect (default, zero value)
 	VCSTypeGit
 	VCSTypeJJ
-	VCSTypeAuto // Auto-detect (default)
 )
 
 // String returns a string representation of VCSType
@@ -53,10 +52,8 @@ func (t VCSType) String() string {
 		return "Git"
 	case VCSTypeJJ:
 		return "JJ"
-	case VCSTypeAuto:
-		return "Auto"
 	default:
-		return "None"
+		return "Auto"
 	}
 }
 
@@ -100,7 +97,7 @@ func NewVCSRepo(path string) VCSRepo {
 }
 
 // NewVCSRepoWithType creates a VCSRepo with the specified type
-// If forceType is VCSTypeAuto or VCSTypeNone, auto-detection is used
+// If forceType is VCSTypeAuto, auto-detection is used
 func NewVCSRepoWithType(path string, forceType VCSType) VCSRepo {
 	switch forceType {
 	case VCSTypeJJ:
