@@ -10,19 +10,7 @@ A file tree for vibe coding in the terminal.
 
 Coming from VSCode, I wanted a familiar file tree when coding with Claude Code or Codex CLI.
 
-- Fast navigation with Vim keybindings
-- Git/JJ status at a glance
-- Jump to diffs in preview mode
-- Drag & drop file operations
-
-**Terminal-native file explorer for vibe coding.**
-
-## Why bon3?
-
-- **Drag & Drop** - Drop files directly into the terminal
-- **VCS integration** - Git and Jujutsu (jj) status display
-- **Image preview** - Kitty graphics protocol support
-- **Zero config** - Works out of the box
+**Zero config** - Works out of the box.
 
 ## Features
 
