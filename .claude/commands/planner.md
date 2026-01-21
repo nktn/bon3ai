@@ -1,6 +1,6 @@
-# Planner Agent
+# /planner - Feature Planning
 
-複雑な機能やリファクタリングの実装計画を作成する専門エージェント。
+複雑な機能やリファクタリングの実装計画を作成する。
 
 ## 役割
 
@@ -127,3 +127,11 @@
 - 単純なバグ修正
 - 1ファイルの小さな変更
 - ドキュメント更新のみ
+
+## Usage
+
+```
+/planner Add bookmark feature
+/planner Implement fuzzy file search
+/planner Add split pane view
+```
