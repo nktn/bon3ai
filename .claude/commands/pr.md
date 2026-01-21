@@ -23,7 +23,7 @@
 git status                      # 未コミット変更確認
 git log @{upstream}..HEAD       # コミット確認（base ブランチ自動検出）
 git diff @{upstream}...HEAD     # 差分確認
-gh pr create --title "..." --body "..." --label "<auto>"
+gh pr create --title "..." --body "..." --label "<auto>" --assignee "@me"
 ```
 
 **ラベル自動付与:**
