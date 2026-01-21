@@ -160,7 +160,23 @@ Priority: If both `.jj` and `.git` exist, Jujutsu is used (common for jj users w
 
 - [Nerd Font](https://www.nerdfonts.com/) - for icons
 - Git or Jujutsu - for VCS features
-- [chafa](https://hpjansson.org/chafa/) - for high-quality image preview
+- [chafa](https://hpjansson.org/chafa/) - for high-quality image preview (Kitty graphics protocol)
+
+### Image Preview in tmux
+
+To enable high-quality image preview inside tmux, add the following to your `~/.tmux.conf`:
+
+```tmux
+set -g allow-passthrough on
+```
+
+Then reload tmux config:
+
+```bash
+tmux source-file ~/.tmux.conf
+```
+
+> **Note**: Requires chafa 1.14+ and a terminal that supports Kitty graphics protocol (Ghostty, Kitty, WezTerm)
 
 ## License
 
