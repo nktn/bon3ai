@@ -2,89 +2,89 @@ package main
 
 import "testing"
 
-func TestGetFileIcon(t *testing.T) {
+func TestGetFileIconByExt(t *testing.T) {
 	tests := []struct {
 		name     string
 		filename string
 		expected string
 	}{
 		// Special filenames
-		{"gitignore", ".gitignore", ""},
-		{"gitattributes", ".gitattributes", ""},
-		{"gitmodules", ".gitmodules", ""},
+		{"gitignore", ".gitignore", icons.Git},
+		{"gitattributes", ".gitattributes", icons.Git},
+		{"gitmodules", ".gitmodules", icons.Git},
 
 		// Programming languages
-		{"go file", "main.go", ""},
-		{"rust file", "main.rs", ""},
-		{"python file", "script.py", ""},
-		{"javascript file", "app.js", ""},
-		{"jsx file", "component.jsx", ""},
-		{"typescript file", "app.ts", ""},
-		{"tsx file", "component.tsx", ""},
+		{"go file", "main.go", icons.Go},
+		{"rust file", "main.rs", icons.Rust},
+		{"python file", "script.py", icons.Python},
+		{"javascript file", "app.js", icons.JavaScript},
+		{"jsx file", "component.jsx", icons.React},
+		{"typescript file", "app.ts", icons.TypeScript},
+		{"tsx file", "component.tsx", icons.React},
 
 		// Web
-		{"html file", "index.html", ""},
-		{"css file", "style.css", ""},
-		{"scss file", "style.scss", ""},
+		{"html file", "index.html", icons.HTML},
+		{"css file", "style.css", icons.CSS},
+		{"scss file", "style.scss", icons.CSS},
 
 		// Config
-		{"json file", "config.json", ""},
-		{"toml file", "config.toml", ""},
-		{"yaml file", "config.yaml", ""},
-		{"yml file", "config.yml", ""},
+		{"json file", "config.json", icons.JSON},
+		{"toml file", "config.toml", icons.JSON},
+		{"yaml file", "config.yaml", icons.JSON},
+		{"yml file", "config.yml", icons.JSON},
 
 		// Documents
-		{"markdown file", "README.md", ""},
-		{"text file", "notes.txt", ""},
-		{"pdf file", "document.pdf", ""},
-		{"word file", "document.docx", ""},
+		{"markdown file", "README.md", icons.Markdown},
+		{"text file", "notes.txt", icons.FileText},
+		{"pdf file", "document.pdf", icons.PDF},
+		{"word file", "document.docx", icons.Word},
 
 		// Media
-		{"png image", "image.png", ""},
-		{"jpg image", "photo.jpg", ""},
-		{"svg image", "icon.svg", ""},
-		{"mp3 audio", "song.mp3", ""},
-		{"mp4 video", "video.mp4", ""},
+		{"png image", "image.png", icons.Image},
+		{"jpg image", "photo.jpg", icons.Image},
+		{"svg image", "icon.svg", icons.Image},
+		{"mp3 audio", "song.mp3", icons.Audio},
+		{"mp4 video", "video.mp4", icons.Video},
 
 		// Archives
-		{"zip file", "archive.zip", ""},
-		{"tar file", "archive.tar", ""},
-		{"gz file", "archive.gz", ""},
+		{"zip file", "archive.zip", icons.Archive},
+		{"tar file", "archive.tar", icons.Archive},
+		{"gz file", "archive.gz", icons.Archive},
 
 		// Other
-		{"lock file", "package-lock.json", ""}, // .json takes precedence
-		{"shell script", "script.sh", ""},
-		{"bash script", "script.bash", ""},
-		{"unknown extension", "file.xyz", ""},
-		{"no extension", "Makefile", ""},
+		{"lock file", "package-lock.json", icons.JSON}, // .json takes precedence
+		{"shell script", "script.sh", icons.Terminal},
+		{"bash script", "script.bash", icons.Terminal},
+		{"unknown extension", "file.xyz", icons.File},
+		{"no extension", "Makefile", icons.File},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := getFileIcon(tt.filename)
+			result := getFileIconByExt(tt.filename)
 			if result != tt.expected {
-				t.Errorf("getFileIcon(%q) = %q, expected %q", tt.filename, result, tt.expected)
+				t.Errorf("getFileIconByExt(%q) = %q, expected %q", tt.filename, result, tt.expected)
 			}
 		})
 	}
 }
 
-func TestGetFileIcon_CaseInsensitive(t *testing.T) {
+func TestGetFileIconByExt_CaseInsensitive(t *testing.T) {
 	// Extension matching should be case-insensitive
 	tests := []struct {
 		filename string
 		expected string
 	}{
-		{"FILE.GO", ""},
-		{"Image.PNG", ""},
-		{"Style.CSS", ""},
-		{"Config.JSON", ""},
+		{"FILE.GO", icons.Go},
+		{"Image.PNG", icons.Image},
+		{"Style.CSS", icons.CSS},
+		{"Config.JSON", icons.JSON},
 	}
 
 	for _, tt := range tests {
-		result := getFileIcon(tt.filename)
+		result := getFileIconByExt(tt.filename)
 		if result != tt.expected {
-			t.Errorf("getFileIcon(%q) = %q, expected %q", tt.filename, result, tt.expected)
+			t.Errorf("getFileIconByExt(%q) = %q, expected %q", tt.filename, result, tt.expected)
 		}
 	}
 }

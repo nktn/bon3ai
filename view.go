@@ -227,19 +227,18 @@ func (m Model) renderNode(node *FileNode, isSelected bool) string {
 		markIndicator = "*"
 	}
 
-	// Icon (Nerd Font)
+	// Icon (uses centralized icons from icons.go)
 	var icon string
 	if node.IsGhost {
-		// Ghost file (deleted) - use special icon
-		icon = "\uf4a4" // nf-md-ghost
+		icon = icons.Ghost
 	} else if node.IsDir {
 		if node.Expanded {
-			icon = "\uf07c" // nf-fa-folder_open
+			icon = icons.FolderOpen
 		} else {
-			icon = "\uf07b" // nf-fa-folder
+			icon = icons.FolderClosed
 		}
 	} else {
-		icon = getFileIcon(node.Name)
+		icon = getFileIconByExt(node.Name)
 	}
 
 	// Name with strikethrough for ghost files
@@ -668,10 +667,10 @@ func (m Model) renderConfirmPopup() string {
 		var icon string
 		var style lipgloss.Style
 		if isDir {
-			icon = "\uf07b" // nf-fa-folder
+			icon = icons.FolderClosed
 			style = lipgloss.NewStyle().Foreground(lipgloss.Color("196")).Bold(true)
 		} else {
-			icon = "\uf15b" // nf-fa-file
+			icon = icons.File
 			style = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 		}
 
@@ -704,78 +703,6 @@ func (m Model) renderConfirmPopup() string {
 	popup := borderStyle.Render(content)
 
 	return popup
-}
-
-// File icon mappings (Nerd Font)
-var (
-	// Special filename icons
-	specialFileIcons = map[string]string{
-		".gitignore":     "\ue702", // nf-dev-git
-		".gitattributes": "\ue702", // nf-dev-git
-		".gitmodules":    "\ue702", // nf-dev-git
-	}
-
-	// Extension to icon mapping
-	extIcons = map[string]string{
-		"go":   "\ue627", // nf-seti-go
-		"rs":   "\ue7a8", // nf-dev-rust
-		"py":   "\ue73c", // nf-dev-python
-		"js":   "\ue781", // nf-dev-javascript
-		"jsx":  "\ue7ba", // nf-dev-react
-		"ts":   "\ue628", // nf-seti-typescript
-		"tsx":  "\ue7ba", // nf-dev-react
-		"html": "\ue736", // nf-dev-html5
-		"css":  "\ue749", // nf-dev-css3
-		"scss": "\ue749", // nf-dev-css3
-		"sass": "\ue749", // nf-dev-css3
-		"json": "\ue60b", // nf-seti-json
-		"toml": "\ue60b", // nf-seti-json (config)
-		"yaml": "\ue60b", // nf-seti-json (config)
-		"yml":  "\ue60b", // nf-seti-json (config)
-		"md":   "\ue73e", // nf-dev-markdown
-		"txt":  "\uf15c", // nf-fa-file_text
-		"lock": "\uf023", // nf-fa-lock
-		"png":  "\uf1c5", // nf-fa-file_image
-		"jpg":  "\uf1c5", // nf-fa-file_image
-		"jpeg": "\uf1c5", // nf-fa-file_image
-		"gif":  "\uf1c5", // nf-fa-file_image
-		"svg":  "\uf1c5", // nf-fa-file_image
-		"ico":  "\uf1c5", // nf-fa-file_image
-		"mp3":  "\uf1c7", // nf-fa-file_audio
-		"wav":  "\uf1c7", // nf-fa-file_audio
-		"flac": "\uf1c7", // nf-fa-file_audio
-		"mp4":  "\uf1c8", // nf-fa-file_video
-		"mkv":  "\uf1c8", // nf-fa-file_video
-		"avi":  "\uf1c8", // nf-fa-file_video
-		"zip":  "\uf1c6", // nf-fa-file_archive
-		"tar":  "\uf1c6", // nf-fa-file_archive
-		"gz":   "\uf1c6", // nf-fa-file_archive
-		"rar":  "\uf1c6", // nf-fa-file_archive
-		"pdf":  "\uf1c1", // nf-fa-file_pdf
-		"doc":  "\uf1c2", // nf-fa-file_word
-		"docx": "\uf1c2", // nf-fa-file_word
-		"sh":   "\ue795", // nf-dev-terminal
-		"bash": "\ue795", // nf-dev-terminal
-		"zsh":  "\ue795", // nf-dev-terminal
-	}
-)
-
-func getFileIcon(name string) string {
-	// Check for special filenames first
-	lowerName := strings.ToLower(name)
-	if icon, ok := specialFileIcons[lowerName]; ok {
-		return icon
-	}
-
-	// Check extension
-	if idx := strings.LastIndex(name, "."); idx != -1 {
-		ext := strings.ToLower(name[idx+1:])
-		if icon, ok := extIcons[ext]; ok {
-			return icon
-		}
-	}
-
-	return "\uf15b" // nf-fa-file (default)
 }
 
 // formatFileSize converts bytes to human-readable format
