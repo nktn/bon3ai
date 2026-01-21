@@ -429,9 +429,9 @@ func TestModel_WindowResize(t *testing.T) {
 		t.Errorf("Width should be 100, got %d", m.width)
 	}
 
-	// Height is adjusted by -3
-	if m.height != 47 {
-		t.Errorf("Height should be 47, got %d", m.height)
+	// Height is stored as-is (adjustment happens in View)
+	if m.height != 50 {
+		t.Errorf("Height should be 50, got %d", m.height)
 	}
 }
 

@@ -1212,3 +1212,4 @@ func TestSearch_EmptyQuery_ClearsSearchState(t *testing.T) {
 		t.Errorf("Expected searchMatchCount to be 0, got %d", m.searchMatchCount)
 	}
 }
+

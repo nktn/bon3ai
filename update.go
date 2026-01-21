@@ -40,11 +40,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
-		m.height = msg.Height - 3
+		m.height = msg.Height
 
 	case tickMsg:
 		m.checkDropBuffer()
 		return m, tickCmd()
+
+	case execDoneMsg:
+		// External process execution completed, exit exec mode
+		m.execMode = false
+		return m, nil
 
 	case FileChangeMsg:
 		// Refresh tree on file system changes

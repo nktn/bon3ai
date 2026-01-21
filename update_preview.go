@@ -58,6 +58,15 @@ func (m *Model) openPreview() tea.Cmd {
 		m.imageFormat = imgFormat
 		m.imageSize = imgSize
 
+		// In tmux, use tea.ExecProcess to run chafa directly (bypasses Bubble Tea rendering
+		// which corrupts tmux passthrough escape sequences)
+		if os.Getenv("TMUX") != "" {
+			if _, err := exec.LookPath("chafa"); err == nil {
+				m.execMode = true // Prevent View() from rendering during exec
+				return m.execChafaPreview(node.Path)
+			}
+		}
+
 		lines, err := m.loadImagePreview(node.Path)
 		if err != nil {
 			m.message = err.Error()
@@ -220,6 +229,50 @@ func getFormatFromExtension(path string) string {
 	return ""
 }
 
+// execChafaPreview runs chafa directly via tea.Exec for tmux compatibility
+func (m *Model) execChafaPreview(path string) tea.Cmd {
+	width := m.width - 2
+	height := m.height - 4
+	if width < 10 {
+		width = 10
+	}
+	if height < 5 {
+		height = 5
+	}
+
+	// Build info line (same format as view.go renderPreview)
+	filename := filepath.Base(path)
+	var info string
+	if m.imageWidth > 0 && m.imageHeight > 0 {
+		info = fmt.Sprintf(" %s (%dx%d %s, %s) ",
+			filename,
+			m.imageWidth, m.imageHeight,
+			m.imageFormat,
+			formatFileSize(m.imageSize))
+	} else if m.imageFormat != "" {
+		info = fmt.Sprintf(" %s (%s, %s) ",
+			filename,
+			m.imageFormat,
+			formatFileSize(m.imageSize))
+	} else {
+		info = fmt.Sprintf(" %s ", filename)
+	}
+
+	// Use shell script with environment variables to prevent injection attacks.
+	// Data is passed via env vars ($INFO, $IMAGE_PATH) instead of string interpolation.
+	// Title uses cyan background (matching previewTitleStyle).
+	// Use ANSI escape sequences instead of 'clear' command to reduce flicker:
+	// \033[?25l = hide cursor, \033[H = home, \033[2J = clear screen
+	script := fmt.Sprintf(`printf '\033[?25l\033[H\033[2J\033[46;30m%%s\033[0m\n\n' "$INFO"; chafa --format kitty --passthrough tmux --animate off --size %dx%d -- "$IMAGE_PATH"; printf '\n\033[90mPress any key to close...\033[0m'; read -n 1; printf '\033[?25h'`,
+		width, height)
+
+	cmd := exec.Command("bash", "-c", script)
+	cmd.Env = append(os.Environ(), "INFO="+info, "IMAGE_PATH="+path)
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		return execDoneMsg{} // Signal exec completion to reset execMode
+	})
+}
+
 // Image preview loading
 
 func (m *Model) loadImagePreview(path string) ([]string, error) {
@@ -235,15 +288,16 @@ func (m *Model) loadImagePreview(path string) ([]string, error) {
 	}
 
 	// Try chafa first (high quality with Kitty protocol)
+	// Note: tmux uses execChafaPreview instead (View() corrupts tmux passthrough)
 	if _, err := exec.LookPath("chafa"); err == nil {
-		cmd := exec.Command("chafa",
+		args := []string{
 			"--format", "kitty",
 			"--animate", "off",
 			"--polite", "on",
 			"--size", fmt.Sprintf("%dx%d", width, height),
-			"--", // Prevent option injection from filenames starting with -
-			path,
-		)
+		}
+		args = append(args, "--", path) // Prevent option injection from filenames starting with -
+		cmd := exec.Command("chafa", args...)
 		output, err := cmd.Output()
 		if err == nil {
 			m.previewIsImage = true
