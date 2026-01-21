@@ -90,16 +90,42 @@ var asciiIcons = IconSet{
 	Git:          " ",
 }
 
+// IconMode represents the icon display mode
+type IconMode int
+
+const (
+	// IconModeNerdFont uses Nerd Font icons (default)
+	IconModeNerdFont IconMode = iota
+	// IconModeASCII uses ASCII fallback icons
+	IconModeASCII
+)
+
 // icons is the current icon set in use
 var icons = nerdFontIcons
 
-// useASCIIIcons is set via BON3_ASCII_ICONS environment variable
-var useASCIIIcons = os.Getenv("BON3_ASCII_ICONS") != ""
+// currentIconMode tracks the current icon mode for testing
+var currentIconMode = IconModeNerdFont
 
 func init() {
-	if useASCIIIcons {
-		icons = asciiIcons
+	if os.Getenv("BON3_ASCII_ICONS") != "" {
+		SetIconMode(IconModeASCII)
 	}
+}
+
+// SetIconMode changes the icon mode (useful for testing)
+func SetIconMode(mode IconMode) {
+	currentIconMode = mode
+	switch mode {
+	case IconModeASCII:
+		icons = asciiIcons
+	default:
+		icons = nerdFontIcons
+	}
+}
+
+// GetIconMode returns the current icon mode
+func GetIconMode() IconMode {
+	return currentIconMode
 }
 
 // getFileIconByExt returns the icon for a file based on its extension
@@ -112,7 +138,9 @@ func getFileIconByExt(name string) string {
 	}
 
 	// Check extension
-	if idx := strings.LastIndex(name, "."); idx != -1 {
+	// Note: dotfiles like ".bashrc" have idx=0, so we skip them (no extension)
+	// Files like ".config.json" have idx>0 for the last dot, so they have an extension
+	if idx := strings.LastIndex(name, "."); idx > 0 {
 		ext := strings.ToLower(name[idx+1:])
 		switch ext {
 		case "go":

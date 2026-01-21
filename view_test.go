@@ -89,6 +89,78 @@ func TestGetFileIconByExt_CaseInsensitive(t *testing.T) {
 	}
 }
 
+func TestGetFileIconByExt_Dotfiles(t *testing.T) {
+	// Dotfiles like .bashrc should not be treated as having an extension
+	tests := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"dotfile bashrc", ".bashrc", icons.File},
+		{"dotfile zshrc", ".zshrc", icons.File},
+		{"dotfile profile", ".profile", icons.File},
+		{"dotfile vimrc", ".vimrc", icons.File},
+		{"dotfile with extension", ".config.json", icons.JSON},
+		{"dotfile with extension yaml", ".eslintrc.yml", icons.JSON},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := getFileIconByExt(tt.filename)
+			if result != tt.expected {
+				t.Errorf("getFileIconByExt(%q) = %q, expected %q", tt.filename, result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestSetIconMode(t *testing.T) {
+	// Save original mode
+	originalMode := GetIconMode()
+	defer SetIconMode(originalMode)
+
+	// Test switching to ASCII mode
+	SetIconMode(IconModeASCII)
+	if GetIconMode() != IconModeASCII {
+		t.Error("SetIconMode(IconModeASCII) did not set mode correctly")
+	}
+	if icons.FolderClosed != "+" {
+		t.Errorf("ASCII mode FolderClosed = %q, expected %q", icons.FolderClosed, "+")
+	}
+	if icons.FolderOpen != "-" {
+		t.Errorf("ASCII mode FolderOpen = %q, expected %q", icons.FolderOpen, "-")
+	}
+
+	// Test switching back to Nerd Font mode
+	SetIconMode(IconModeNerdFont)
+	if GetIconMode() != IconModeNerdFont {
+		t.Error("SetIconMode(IconModeNerdFont) did not set mode correctly")
+	}
+	if icons.FolderClosed != "\uf07b" {
+		t.Errorf("NerdFont mode FolderClosed = %q, expected %q", icons.FolderClosed, "\uf07b")
+	}
+}
+
+func TestASCIIIconsConsistency(t *testing.T) {
+	// Save original mode
+	originalMode := GetIconMode()
+	defer SetIconMode(originalMode)
+
+	// Switch to ASCII mode
+	SetIconMode(IconModeASCII)
+
+	// Verify getFileIconByExt uses ASCII icons
+	goIcon := getFileIconByExt("main.go")
+	if goIcon != " " {
+		t.Errorf("ASCII mode Go icon = %q, expected %q", goIcon, " ")
+	}
+
+	folderIcon := icons.FolderClosed
+	if folderIcon != "+" {
+		t.Errorf("ASCII mode FolderClosed = %q, expected %q", folderIcon, "+")
+	}
+}
+
 func TestClipboardContains(t *testing.T) {
 	tests := []struct {
 		name     string
