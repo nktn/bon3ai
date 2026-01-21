@@ -890,3 +890,132 @@ func TestLoadImagePreview_FallbackToASCII(t *testing.T) {
 		t.Error("Expected non-empty preview content")
 	}
 }
+
+// ========================================
+// loadFileDiff Clamp Tests
+// ========================================
+
+// mockVCSRepo is a test double for VCSRepo
+type mockVCSRepo struct {
+	diffLines []DiffLine
+}
+
+func (m *mockVCSRepo) IsInsideRepo() bool              { return true }
+func (m *mockVCSRepo) GetStatus(path string) VCSStatus { return VCSStatusNone }
+func (m *mockVCSRepo) GetDisplayInfo() string          { return "mock" }
+func (m *mockVCSRepo) GetRoot() string                 { return "/mock" }
+func (m *mockVCSRepo) Refresh(path string)             {}
+func (m *mockVCSRepo) GetType() VCSType                { return VCSTypeGit }
+func (m *mockVCSRepo) GetDeletedFiles() []string       { return nil }
+func (m *mockVCSRepo) GetFileDiff(path string) []DiffLine {
+	return m.diffLines
+}
+
+func TestLoadFileDiff_ClampEOFDeletion(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	// Set up preview content with 5 lines
+	model.previewContent = []string{"line1", "line2", "line3", "line4", "line5"}
+
+	// Mock VCS returns deletion marker at line 8 (beyond content length)
+	model.vcsRepo = &mockVCSRepo{
+		diffLines: []DiffLine{
+			{Line: 3, Type: DiffLineModified},
+			{Line: 8, Type: DiffLineDeleted}, // Should be clamped to 5
+		},
+	}
+
+	// Call loadFileDiff
+	model.loadFileDiff("/mock/file.txt")
+
+	// Verify clamping
+	if len(model.previewDiffLines) != 2 {
+		t.Fatalf("Expected 2 diff lines, got %d", len(model.previewDiffLines))
+	}
+
+	// First line should be unchanged
+	if model.previewDiffLines[0].Line != 3 {
+		t.Errorf("Expected first diff line at 3, got %d", model.previewDiffLines[0].Line)
+	}
+
+	// Second line (EOF deletion) should be clamped to content length
+	if model.previewDiffLines[1].Line != 5 {
+		t.Errorf("Expected EOF deletion marker clamped to 5, got %d", model.previewDiffLines[1].Line)
+	}
+
+	// Verify map also reflects clamped value
+	if _, ok := model.previewDiffMap[5]; !ok {
+		t.Error("Expected previewDiffMap to contain clamped line 5")
+	}
+	if _, ok := model.previewDiffMap[8]; ok {
+		t.Error("previewDiffMap should not contain original unclamped line 8")
+	}
+}
+
+func TestLoadFileDiff_EmptyContent(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	// Empty preview content
+	model.previewContent = []string{}
+
+	// Mock VCS returns deletion marker
+	model.vcsRepo = &mockVCSRepo{
+		diffLines: []DiffLine{
+			{Line: 1, Type: DiffLineDeleted},
+		},
+	}
+
+	// Call loadFileDiff - should not panic, markers not clamped when content is empty
+	model.loadFileDiff("/mock/file.txt")
+
+	// With empty content, clamping is skipped (contentLen == 0)
+	if len(model.previewDiffLines) != 1 {
+		t.Fatalf("Expected 1 diff line, got %d", len(model.previewDiffLines))
+	}
+}
+
+func TestLoadFileDiff_NoDiffLines(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.previewContent = []string{"line1", "line2"}
+
+	// Mock VCS returns no diff lines
+	model.vcsRepo = &mockVCSRepo{
+		diffLines: []DiffLine{},
+	}
+
+	// Call loadFileDiff
+	model.loadFileDiff("/mock/file.txt")
+
+	// Should have no diff lines
+	if model.previewDiffLines != nil {
+		t.Errorf("Expected nil previewDiffLines, got %v", model.previewDiffLines)
+	}
+}

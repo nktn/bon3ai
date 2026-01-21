@@ -224,6 +224,8 @@ func (j *JJRepo) GetFileDiff(path string) []DiffLine {
 	output, err := exec.Command("jj", "-R", j.Root, "diff", "--git", "--context", "0", "--", relPath).Output()
 	if err != nil {
 		// Fallback for older jj versions that don't support --context
+		// Note: This is best-effort - deletion-only markers may be missed because
+		// parseGitDiff expects -U0 format (context lines reset deletion tracking)
 		output, err = exec.Command("jj", "-R", j.Root, "diff", "--git", "--", relPath).Output()
 		if err != nil {
 			return nil
