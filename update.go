@@ -6,22 +6,19 @@ import (
 	"strings"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // Update implements tea.Model
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.PasteMsg:
 		// Handle paste (drag & drop sends text as paste)
-		if msg.Paste {
-			for _, r := range msg.Runes {
-				m.dropBuffer += string(r)
-			}
-			m.lastCharTime = time.Now()
-			return m, nil
-		}
+		m.dropBuffer += msg.Content
+		m.lastCharTime = time.Now()
+		return m, nil
 
+	case tea.KeyPressMsg:
 		switch m.inputMode {
 		case ModeNormal:
 			return m.updateNormalMode(msg)
@@ -33,9 +30,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.updatePreviewMode(msg)
 		}
 
-	case tea.MouseMsg:
+	case tea.MouseWheelMsg:
 		if m.inputMode == ModeNormal {
-			return m.updateMouseEvent(msg)
+			return m.updateMouseWheelEvent(msg)
+		}
+
+	case tea.MouseClickMsg:
+		if m.inputMode == ModeNormal {
+			return m.updateMouseClickEvent(msg)
 		}
 
 	case tea.WindowSizeMsg:
@@ -137,7 +139,7 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.expandAll()
 
 	// Marking
-	case " ":
+	case "space", " ":
 		m.toggleMark()
 	case "esc":
 		// Clear search first, then marks
@@ -257,8 +259,9 @@ func (m Model) updateInputMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 	default:
 		// Accept non-ASCII characters (e.g., Japanese)
-		if len(msg.Runes) > 0 {
-			m.inputBuffer += string(msg.Runes)
+		key := msg.Key()
+		if key.Text != "" {
+			m.inputBuffer += key.Text
 		}
 		// Refresh completions on input change (filter as you type)
 		if m.inputMode == ModeGoTo {
@@ -319,7 +322,7 @@ func (m Model) updatePreviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		if m.previewScroll < 0 {
 			m.previewScroll = 0
 		}
-	case "pgdown", "f", " ":
+	case "pgdown", "f", "space", " ":
 		maxScroll := contentLen - visibleHeight
 		if maxScroll < 0 {
 			maxScroll = 0
@@ -413,59 +416,45 @@ func (m *Model) scrollToPreviewLine(lineNum int) {
 	m.previewScroll = targetScroll
 }
 
-func (m Model) updateMouseEvent(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
-	// Handle scroll wheel first (regardless of action type)
-	switch msg.Button {
-	case tea.MouseButtonWheelUp:
-		// Debounce scroll events
-		now := time.Now()
-		if now.Sub(m.lastScrollTime).Milliseconds() < DebounceScrollMs {
-			return m, nil
-		}
-		m.lastScrollTime = now
-		m.moveUp()
-		m.adjustScroll()
-		return m, nil
-	case tea.MouseButtonWheelDown:
-		// Debounce scroll events
-		now := time.Now()
-		if now.Sub(m.lastScrollTime).Milliseconds() < DebounceScrollMs {
-			return m, nil
-		}
-		m.lastScrollTime = now
-		m.moveDown()
-		m.adjustScroll()
+func (m Model) updateMouseWheelEvent(msg tea.MouseWheelMsg) (tea.Model, tea.Cmd) {
+	// Debounce scroll events
+	now := time.Now()
+	if now.Sub(m.lastScrollTime).Milliseconds() < DebounceScrollMs {
 		return m, nil
 	}
+	m.lastScrollTime = now
 
-	// Handle other mouse events
-	switch msg.Action {
-	case tea.MouseActionPress:
-		if msg.Button == tea.MouseButtonLeft {
-			// Tree area starts at row 1 (after title)
-			if msg.Y > 0 {
-				row := msg.Y - 1
-				index := m.scrollOffset + row
-				if index < m.tree.Len() {
-					now := time.Now()
-					isDoubleClick := m.lastClickIndex == index &&
-						now.Sub(m.lastClickTime).Milliseconds() < DoubleClickMs
+	switch msg.Button {
+	case tea.MouseWheelUp:
+		m.moveUp()
+	case tea.MouseWheelDown:
+		m.moveDown()
+	}
+	m.adjustScroll()
+	return m, nil
+}
 
-					m.selected = index
-					m.lastClickTime = now
-					m.lastClickIndex = index
+func (m Model) updateMouseClickEvent(msg tea.MouseClickMsg) (tea.Model, tea.Cmd) {
+	if msg.Button == tea.MouseLeft {
+		// Tree area starts at row 1 (after title)
+		if msg.Y > 0 {
+			row := msg.Y - 1
+			index := m.scrollOffset + row
+			if index < m.tree.Len() {
+				now := time.Now()
+				isDoubleClick := m.lastClickIndex == index &&
+					now.Sub(m.lastClickTime).Milliseconds() < DoubleClickMs
 
-					if isDoubleClick {
-						m.toggleExpand()
-					}
+				m.selected = index
+				m.lastClickTime = now
+				m.lastClickIndex = index
+
+				if isDoubleClick {
+					m.toggleExpand()
 				}
 			}
 		}
-
-	case tea.MouseActionMotion:
-		// Ignore motion events
 	}
-
 	m.adjustScroll()
 	return m, nil
 }

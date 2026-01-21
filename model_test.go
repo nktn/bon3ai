@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // setupTestModel creates a Model with a test directory structure
@@ -39,14 +39,14 @@ func setupTestModel(t *testing.T) (Model, string) {
 	return m, dir
 }
 
-// keyMsg creates a tea.KeyMsg for testing
-func keyMsg(key string) tea.KeyMsg {
-	return tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune(key)}
+// keyMsg creates a tea.KeyPressMsg for testing
+func keyMsg(key string) tea.KeyPressMsg {
+	return tea.KeyPressMsg{Text: key, Code: rune(key[0])}
 }
 
-// specialKeyMsg creates a tea.KeyMsg for special keys
-func specialKeyMsg(keyType tea.KeyType) tea.KeyMsg {
-	return tea.KeyMsg{Type: keyType}
+// specialKeyMsg creates a tea.KeyPressMsg for special keys
+func specialKeyMsg(code rune) tea.KeyPressMsg {
+	return tea.KeyPressMsg{Code: code}
 }
 
 func TestModel_NewModel(t *testing.T) {
@@ -599,13 +599,14 @@ func TestModel_InputMode_Backspace(t *testing.T) {
 	}
 }
 
-func TestModel_View_ReturnsString(t *testing.T) {
+func TestModel_View_ReturnsView(t *testing.T) {
 	m, _ := setupTestModel(t)
 
 	view := m.View()
 
-	if view == "" {
-		t.Error("View should return non-empty string")
+	// View should have AltScreen enabled
+	if !view.AltScreen {
+		t.Error("View should have AltScreen enabled")
 	}
 }
 
@@ -620,8 +621,9 @@ func TestModel_View_PreviewMode(t *testing.T) {
 
 	view := m.View()
 
-	if view == "" {
-		t.Error("Preview view should return non-empty string")
+	// View should have AltScreen enabled
+	if !view.AltScreen {
+		t.Error("Preview view should have AltScreen enabled")
 	}
 }
 
@@ -635,7 +637,8 @@ func TestModel_View_ConfirmDelete(t *testing.T) {
 
 	view := m.View()
 
-	if view == "" {
-		t.Error("Confirm delete view should return non-empty string")
+	// View should have AltScreen enabled
+	if !view.AltScreen {
+		t.Error("Confirm delete view should have AltScreen enabled")
 	}
 }

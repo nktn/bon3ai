@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // ========================================
@@ -31,7 +31,7 @@ func TestTransition_Normal_to_Search(t *testing.T) {
 	}
 
 	// Press '/'
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'/'}), Code: rune([]rune{'/'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -57,7 +57,7 @@ func TestTransition_Normal_to_Rename(t *testing.T) {
 	model.selected = 1 // Select the file
 
 	// Press 'r'
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'r'}), Code: rune([]rune{'r'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -83,7 +83,7 @@ func TestTransition_Normal_to_NewFile(t *testing.T) {
 	}()
 
 	// Press 'a'
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'a'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'a'}), Code: rune([]rune{'a'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -108,7 +108,7 @@ func TestTransition_Normal_to_NewDir(t *testing.T) {
 	}()
 
 	// Press 'A'
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'A'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'A'}), Code: rune([]rune{'A'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -134,7 +134,7 @@ func TestTransition_Normal_to_ConfirmDelete(t *testing.T) {
 	model.selected = 1
 
 	// Press 'D'
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'D'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'D'}), Code: rune([]rune{'D'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -161,7 +161,7 @@ func TestTransition_Normal_to_Preview(t *testing.T) {
 	model.selected = 1
 
 	// Press 'o'
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'o'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'o'}), Code: rune([]rune{'o'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -195,7 +195,7 @@ func TestTransition_ConfirmDelete_to_Normal_Yes(t *testing.T) {
 	model.deletePaths = []string{testFile}
 
 	// Press 'y'
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'y'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'y'}), Code: rune([]rune{'y'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -228,7 +228,7 @@ func TestTransition_ConfirmDelete_to_Normal_YesUppercase(t *testing.T) {
 	model.deletePaths = []string{testFile}
 
 	// Press 'Y'
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'Y'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'Y'}), Code: rune([]rune{'Y'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -257,7 +257,7 @@ func TestTransition_ConfirmDelete_to_Normal_Enter(t *testing.T) {
 	model.deletePaths = []string{testFile}
 
 	// Press Enter
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -286,7 +286,7 @@ func TestTransition_ConfirmDelete_to_Normal_No(t *testing.T) {
 	model.deletePaths = []string{testFile}
 
 	// Press 'n'
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'n'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'n'}), Code: rune([]rune{'n'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -321,7 +321,7 @@ func TestTransition_ConfirmDelete_to_Normal_Esc(t *testing.T) {
 	model.deletePaths = []string{testFile}
 
 	// Press Esc
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	msg := tea.KeyPressMsg{Code: tea.KeyEsc}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -355,7 +355,7 @@ func TestTransition_Preview_to_Normal_Q(t *testing.T) {
 	model.previewPath = "/some/path"
 
 	// Press 'q'
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'q'}), Code: rune([]rune{'q'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -384,7 +384,7 @@ func TestTransition_Preview_to_Normal_Esc(t *testing.T) {
 	model.previewContent = []string{"content"}
 
 	// Press Esc
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	msg := tea.KeyPressMsg{Code: tea.KeyEsc}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -410,7 +410,7 @@ func TestTransition_Preview_to_Normal_O(t *testing.T) {
 	model.previewContent = []string{"content"}
 
 	// Press 'o' (toggle preview)
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'o'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'o'}), Code: rune([]rune{'o'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -440,7 +440,7 @@ func TestPreviewMode_ScrollDown(t *testing.T) {
 	model.height = 20
 
 	// Press 'j' to scroll down
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'j'}), Code: rune([]rune{'j'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -468,7 +468,7 @@ func TestPreviewMode_ScrollUp(t *testing.T) {
 	model.height = 20
 
 	// Press 'k' to scroll up
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'k'}), Code: rune([]rune{'k'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -496,7 +496,7 @@ func TestPreviewMode_PageDown(t *testing.T) {
 	model.height = 20 // visibleHeight = 16
 
 	// Press 'f' for page down
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'f'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'f'}), Code: rune([]rune{'f'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -524,7 +524,7 @@ func TestPreviewMode_PageUp(t *testing.T) {
 	model.height = 20
 
 	// Press 'b' for page up
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'b'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'b'}), Code: rune([]rune{'b'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -552,7 +552,7 @@ func TestPreviewMode_JumpToTop(t *testing.T) {
 	model.height = 20
 
 	// Press 'g' for top
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'g'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'g'}), Code: rune([]rune{'g'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -580,7 +580,7 @@ func TestPreviewMode_JumpToBottom(t *testing.T) {
 	model.height = 20 // visibleHeight = 16
 
 	// Press 'G' for bottom
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'G'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'G'}), Code: rune([]rune{'G'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -611,7 +611,7 @@ func TestTransition_Search_to_Normal_Enter(t *testing.T) {
 	model.inputBuffer = "target"
 
 	// Press Enter
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -637,7 +637,7 @@ func TestTransition_Search_to_Normal_Esc(t *testing.T) {
 	model.inputBuffer = "something"
 
 	// Press Esc
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	msg := tea.KeyPressMsg{Code: tea.KeyEsc}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -668,7 +668,7 @@ func TestTransition_Rename_to_Normal_Enter(t *testing.T) {
 	model.inputBuffer = "new.txt"
 
 	// Press Enter
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -695,7 +695,7 @@ func TestTransition_Rename_to_Normal_Esc(t *testing.T) {
 	model.inputBuffer = "newname.txt"
 
 	// Press Esc
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	msg := tea.KeyPressMsg{Code: tea.KeyEsc}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -725,7 +725,7 @@ func TestTransition_NewFile_to_Normal_Enter(t *testing.T) {
 	model.inputBuffer = "created.txt"
 
 	// Press Enter
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -755,7 +755,7 @@ func TestTransition_NewFile_to_Normal_Esc(t *testing.T) {
 	model.inputBuffer = "should_not_exist.txt"
 
 	// Press Esc
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	msg := tea.KeyPressMsg{Code: tea.KeyEsc}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -785,7 +785,7 @@ func TestTransition_NewDir_to_Normal_Enter(t *testing.T) {
 	model.inputBuffer = "newdir"
 
 	// Press Enter
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -819,7 +819,7 @@ func TestTransition_NewDir_to_Normal_Esc(t *testing.T) {
 	model.inputBuffer = "should_not_exist"
 
 	// Press Esc
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	msg := tea.KeyPressMsg{Code: tea.KeyEsc}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -851,7 +851,7 @@ func TestInputMode_BackspaceDeletesChar(t *testing.T) {
 	model.inputBuffer = "hello"
 
 	// Press Backspace
-	msg := tea.KeyMsg{Type: tea.KeyBackspace}
+	msg := tea.KeyPressMsg{Code: tea.KeyBackspace}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -877,7 +877,7 @@ func TestInputMode_TypeAddsChar(t *testing.T) {
 	model.inputBuffer = "hel"
 
 	// Type 'l'
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'l'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'l'}), Code: rune([]rune{'l'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -903,7 +903,7 @@ func TestInputMode_UTF8Input(t *testing.T) {
 	model.inputBuffer = ""
 
 	// Type Japanese characters
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'テ', 'ス', 'ト'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'テ', 'ス', 'ト'}), Code: rune([]rune{'テ', 'ス', 'ト'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -929,7 +929,7 @@ func TestInputMode_UTF8Backspace(t *testing.T) {
 	model.inputBuffer = "テスト"
 
 	// Press Backspace - should delete one character, not one byte
-	msg := tea.KeyMsg{Type: tea.KeyBackspace}
+	msg := tea.KeyPressMsg{Code: tea.KeyBackspace}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -955,7 +955,7 @@ func TestInputMode_MixedUTF8AndASCII(t *testing.T) {
 	model.inputBuffer = "ファイル"
 
 	// Add ASCII characters
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'_', '1'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'_', '1'}), Code: rune([]rune{'_', '1'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -964,7 +964,7 @@ func TestInputMode_MixedUTF8AndASCII(t *testing.T) {
 	}
 
 	// Backspace should delete '1'
-	msg = tea.KeyMsg{Type: tea.KeyBackspace}
+	msg = tea.KeyPressMsg{Code: tea.KeyBackspace}
 	newModel, _ = m.Update(msg)
 	m = newModel.(Model)
 
@@ -997,7 +997,7 @@ func TestModeGoTo_FilterAsYouType_GeneratesCandidates(t *testing.T) {
 	model.inputBuffer = ""
 
 	// Type 's' - should generate candidates starting with 's'
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'s'}), Code: rune([]rune{'s'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1034,7 +1034,7 @@ func TestModeGoTo_FilterAsYouType_FiltersCandidates(t *testing.T) {
 	model.completionIndex = 0
 
 	// Type 'r' - should filter to 'scripts/' only
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'r'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'r'}), Code: rune([]rune{'r'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1069,7 +1069,7 @@ func TestModeGoTo_FilterAsYouType_ResetsCompletionIndex(t *testing.T) {
 	model.completionIndex = 2 // User selected 'styles/'
 
 	// Type 'c' - should filter and RESET completionIndex
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'c'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'c'}), Code: rune([]rune{'c'}[0])}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1099,7 +1099,7 @@ func TestModeGoTo_ArrowDown_NavigatesCandidates(t *testing.T) {
 	model.completionIndex = -1
 
 	// Press down arrow
-	msg := tea.KeyMsg{Type: tea.KeyDown}
+	msg := tea.KeyPressMsg{Code: tea.KeyDown}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1108,7 +1108,7 @@ func TestModeGoTo_ArrowDown_NavigatesCandidates(t *testing.T) {
 	}
 
 	// Press down again
-	msg = tea.KeyMsg{Type: tea.KeyDown}
+	msg = tea.KeyPressMsg{Code: tea.KeyDown}
 	newModel, _ = m.Update(msg)
 	m = newModel.(Model)
 
@@ -1117,7 +1117,7 @@ func TestModeGoTo_ArrowDown_NavigatesCandidates(t *testing.T) {
 	}
 
 	// Press down again - should wrap to 0
-	msg = tea.KeyMsg{Type: tea.KeyDown}
+	msg = tea.KeyPressMsg{Code: tea.KeyDown}
 	newModel, _ = m.Update(msg)
 	m = newModel.(Model)
 
@@ -1147,7 +1147,7 @@ func TestModeGoTo_ArrowUp_NavigatesCandidates(t *testing.T) {
 	model.completionIndex = 1
 
 	// Press up arrow
-	msg := tea.KeyMsg{Type: tea.KeyUp}
+	msg := tea.KeyPressMsg{Code: tea.KeyUp}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1156,7 +1156,7 @@ func TestModeGoTo_ArrowUp_NavigatesCandidates(t *testing.T) {
 	}
 
 	// Press up again - should wrap to last
-	msg = tea.KeyMsg{Type: tea.KeyUp}
+	msg = tea.KeyPressMsg{Code: tea.KeyUp}
 	newModel, _ = m.Update(msg)
 	m = newModel.(Model)
 
@@ -1186,7 +1186,7 @@ func TestModeGoTo_CtrlN_NavigatesCandidates(t *testing.T) {
 	model.completionIndex = -1
 
 	// Press Ctrl+n
-	msg := tea.KeyMsg{Type: tea.KeyCtrlN}
+	msg := tea.KeyPressMsg{Code: 'n', Mod: tea.ModCtrl}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1216,7 +1216,7 @@ func TestModeGoTo_CtrlP_NavigatesCandidates(t *testing.T) {
 	model.completionIndex = 0
 
 	// Press Ctrl+p
-	msg := tea.KeyMsg{Type: tea.KeyCtrlP}
+	msg := tea.KeyPressMsg{Code: 'p', Mod: tea.ModCtrl}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1246,7 +1246,7 @@ func TestModeGoTo_Enter_AppliesSelectedCandidate(t *testing.T) {
 	model.completionIndex = 0
 
 	// Press Enter - should apply selected candidate and change directory
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1280,7 +1280,7 @@ func TestModeGoTo_Enter_WithoutSelection_UsesInputBuffer(t *testing.T) {
 	model.completionIndex = -1 // No selection
 
 	// Press Enter - should use inputBuffer directly
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1313,7 +1313,7 @@ func TestModeGoTo_Backspace_RefreshesCandidates(t *testing.T) {
 	model.completionIndex = 0
 
 	// Press Backspace - should expand candidates and reset index
-	msg := tea.KeyMsg{Type: tea.KeyBackspace}
+	msg := tea.KeyPressMsg{Code: tea.KeyBackspace}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 

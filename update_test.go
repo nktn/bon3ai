@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 func TestIsBinaryContent(t *testing.T) {
@@ -752,7 +752,7 @@ func TestPreviewMode_CloseWithQ_ImagePreview(t *testing.T) {
 	model.previewContent = []string{"image content"}
 
 	// Press 'q' to close
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'q'}), Code: rune([]rune{'q'}[0])}
 	newModel, cmd := model.Update(msg)
 	m := newModel.(Model)
 
@@ -787,7 +787,7 @@ func TestPreviewMode_CloseWithQ_TextPreview(t *testing.T) {
 	model.previewContent = []string{"text content"}
 
 	// Press 'q' to close
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	msg := tea.KeyPressMsg{Text: string([]rune{'q'}), Code: rune([]rune{'q'}[0])}
 	newModel, cmd := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1042,7 +1042,7 @@ func TestSearch_ActivatesOnEnter(t *testing.T) {
 	model.inputBuffer = "foo"
 
 	// Press Enter
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1074,7 +1074,7 @@ func TestSearch_ClearsOnEsc(t *testing.T) {
 	model.inputBuffer = "test"
 
 	// Press Esc
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	msg := tea.KeyPressMsg{Code: tea.KeyEsc}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1107,7 +1107,7 @@ func TestSearch_EscClearsSearchBeforeMarks(t *testing.T) {
 	model.marked[testFile] = true
 
 	// First Esc should clear search, not marks
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	msg := tea.KeyPressMsg{Code: tea.KeyEsc}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
@@ -1200,7 +1200,7 @@ func TestSearch_EmptyQuery_ClearsSearchState(t *testing.T) {
 	model.inputBuffer = "" // Empty query
 
 	// Press Enter with empty query
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	newModel, _ := model.Update(msg)
 	m := newModel.(Model)
 
