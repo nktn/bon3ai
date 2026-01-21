@@ -284,8 +284,12 @@ func (m Model) renderStatusBar() string {
 	// Left side: message and other info
 	var leftParts []string
 
-	// Message first (like "Deleted 1 item(s)")
-	if m.message != "" {
+	// Active search indicator (highest priority)
+	if m.searchActive && m.inputBuffer != "" {
+		searchInfo := fmt.Sprintf(`Search:"%s" %d match | n:next Esc:clear`, m.inputBuffer, m.searchMatchCount)
+		leftParts = append(leftParts, searchInfo)
+	} else if m.message != "" {
+		// Message (like "Deleted 1 item(s)") - only if no active search
 		leftParts = append(leftParts, m.message)
 	}
 
@@ -370,6 +374,11 @@ func (m Model) renderInputPopup() string {
 	// Add hint for ModeGoTo
 	if m.inputMode == ModeGoTo {
 		content += m.renderGoToHint(maxContentWidth)
+	}
+
+	// Add hint for ModeSearch
+	if m.inputMode == ModeSearch {
+		content += m.renderSearchHint(maxContentWidth)
 	}
 
 	// Apply width constraint to the popup
@@ -463,6 +472,19 @@ func (m Model) renderCompletionCandidates(maxContentWidth int) string {
 func (m Model) renderGoToHint(maxContentWidth int) string {
 	hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	hint := " Tab:cycle Enter:open Esc:close"
+
+	// Truncate hint if too long
+	if lipgloss.Width(hint) > maxContentWidth {
+		hint = ansi.Truncate(hint, maxContentWidth-1, "") + "…"
+	}
+
+	return "\n" + hintStyle.Render(hint)
+}
+
+// renderSearchHint renders the keyboard hint for ModeSearch
+func (m Model) renderSearchHint(maxContentWidth int) string {
+	hintStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	hint := " Enter:confirm Esc:cancel"
 
 	// Truncate hint if too long
 	if lipgloss.Width(hint) > maxContentWidth {

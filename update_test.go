@@ -1019,3 +1019,196 @@ func TestLoadFileDiff_NoDiffLines(t *testing.T) {
 		t.Errorf("Expected nil previewDiffLines, got %v", model.previewDiffLines)
 	}
 }
+
+// --- Search State Tests ---
+
+func TestSearch_ActivatesOnEnter(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "foo.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "foobar.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "bar.txt"), []byte(""), 0644)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeSearch
+	model.inputBuffer = "foo"
+
+	// Press Enter
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if !m.searchActive {
+		t.Error("Expected searchActive to be true after Enter")
+	}
+	if m.searchMatchCount != 2 {
+		t.Errorf("Expected searchMatchCount to be 2, got %d", m.searchMatchCount)
+	}
+}
+
+func TestSearch_ClearsOnEsc(t *testing.T) {
+	tmpDir := t.TempDir()
+	os.WriteFile(filepath.Join(tmpDir, "file.txt"), []byte(""), 0644)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeNormal
+	model.searchActive = true
+	model.searchMatchCount = 5
+	model.inputBuffer = "test"
+
+	// Press Esc
+	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.searchActive {
+		t.Error("Expected searchActive to be false after Esc")
+	}
+	if m.inputBuffer != "" {
+		t.Error("Expected inputBuffer to be cleared after Esc")
+	}
+}
+
+func TestSearch_EscClearsSearchBeforeMarks(t *testing.T) {
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "file.txt")
+	os.WriteFile(testFile, []byte(""), 0644)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	model.inputMode = ModeNormal
+	model.searchActive = true
+	model.inputBuffer = "test"
+	model.marked[testFile] = true
+
+	// First Esc should clear search, not marks
+	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	if m.searchActive {
+		t.Error("Expected searchActive to be false after first Esc")
+	}
+	if !m.marked[testFile] {
+		t.Error("Expected marks to remain after first Esc")
+	}
+
+	// Second Esc should clear marks
+	newModel, _ = m.Update(msg)
+	m = newModel.(Model)
+
+	if m.marked[testFile] {
+		t.Error("Expected marks to be cleared after second Esc")
+	}
+}
+
+func TestSearch_CountMatches_CaseInsensitive(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Use different filenames (macOS filesystem is case-insensitive)
+	os.WriteFile(filepath.Join(tmpDir, "MyFile.txt"), []byte(""), 0644)
+	os.WriteFile(filepath.Join(tmpDir, "another_file.go"), []byte(""), 0644)
+
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	// Search for "FILE" (uppercase) should match both "MyFile" and "another_file" (case insensitive)
+	model.inputBuffer = "FILE"
+	count := model.countSearchMatches()
+
+	if count != 2 {
+		t.Errorf("Expected 2 matches (case insensitive), got %d", count)
+	}
+}
+
+func TestSearch_CancelInput_ClearsSearchState(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	// Simulate previous search was active
+	model.searchActive = true
+	model.searchMatchCount = 3
+	model.inputMode = ModeSearch
+	model.inputBuffer = "test"
+
+	// Cancel input
+	model.cancelInput()
+
+	if model.searchActive {
+		t.Error("Expected searchActive to be false after cancelInput")
+	}
+	if model.searchMatchCount != 0 {
+		t.Errorf("Expected searchMatchCount to be 0, got %d", model.searchMatchCount)
+	}
+}
+
+func TestSearch_EmptyQuery_ClearsSearchState(t *testing.T) {
+	tmpDir := t.TempDir()
+	model, err := NewModel(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to create model: %v", err)
+	}
+	defer func() {
+		if model.watcher != nil {
+			model.watcher.Close()
+		}
+	}()
+
+	// Simulate previous search was active
+	model.searchActive = true
+	model.searchMatchCount = 3
+	model.inputMode = ModeSearch
+	model.inputBuffer = "" // Empty query
+
+	// Press Enter with empty query
+	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	newModel, _ := model.Update(msg)
+	m := newModel.(Model)
+
+	// Empty query should clear search state (treat as cancel)
+	if m.searchActive {
+		t.Error("Expected searchActive to be false after Enter with empty query")
+	}
+	if m.searchMatchCount != 0 {
+		t.Errorf("Expected searchMatchCount to be 0, got %d", m.searchMatchCount)
+	}
+}
