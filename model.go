@@ -151,6 +151,10 @@ type Model struct {
 	inputMode   InputMode
 	inputBuffer string
 
+	// Search state (after confirmation)
+	searchActive     bool // Search is active (after Enter)
+	searchMatchCount int  // Number of matches found
+
 	// Preview
 	previewContent  []string
 	previewScroll   int

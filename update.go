@@ -135,7 +135,12 @@ func (m Model) updateNormalMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case " ":
 		m.toggleMark()
 	case "esc":
-		m.clearMarks()
+		// Clear search first, then marks
+		if m.searchActive {
+			m.clearSearch()
+		} else {
+			m.clearMarks()
+		}
 
 	// Clipboard
 	case "y":
@@ -497,6 +502,15 @@ func (m *Model) confirmInput() {
 			m.inputBuffer = ""
 			return
 		}
+		// Empty query: treat as cancel (clear any prior search state)
+		if m.inputBuffer == "" {
+			m.searchActive = false
+			m.searchMatchCount = 0
+			return
+		}
+		// Activate search and count matches
+		m.searchActive = true
+		m.searchMatchCount = m.countSearchMatches()
 		m.searchNext()
 	case ModeGoTo:
 		m.doGoTo()
@@ -506,6 +520,11 @@ func (m *Model) confirmInput() {
 }
 
 func (m *Model) cancelInput() {
+	// If canceling search input, also clear any previous search state
+	if m.inputMode == ModeSearch {
+		m.searchActive = false
+		m.searchMatchCount = 0
+	}
 	m.inputMode = ModeNormal
 	m.inputBuffer = ""
 }
@@ -584,6 +603,34 @@ func (m *Model) searchNext() {
 	}
 
 	m.message = "No match found"
+}
+
+// countSearchMatches counts the number of nodes matching the search query
+func (m *Model) countSearchMatches() int {
+	if m.inputBuffer == "" {
+		return 0
+	}
+
+	query := strings.ToLower(m.inputBuffer)
+	count := 0
+	length := m.tree.Len()
+
+	for i := 0; i < length; i++ {
+		node := m.tree.GetNode(i)
+		if node != nil && strings.Contains(strings.ToLower(node.Name), query) {
+			count++
+		}
+	}
+
+	return count
+}
+
+// clearSearch clears the active search
+func (m *Model) clearSearch() {
+	m.searchActive = false
+	m.searchMatchCount = 0
+	m.inputBuffer = ""
+	m.message = "Search cleared"
 }
 
 // Other operations
