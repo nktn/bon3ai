@@ -328,9 +328,79 @@ func (m Model) updatePreviewMode(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			maxScroll = 0
 		}
 		m.previewScroll = maxScroll
+
+	// Jump to next/previous change
+	case "n":
+		m.jumpToNextDiff()
+	case "N":
+		m.jumpToPrevDiff()
 	}
 
 	return m, nil
+}
+
+// jumpToNextDiff jumps to the next diff line in preview
+func (m *Model) jumpToNextDiff() {
+	if len(m.previewDiffLines) == 0 {
+		m.message = "No uncommitted changes"
+		return
+	}
+
+	// If no diff selected yet, start from the beginning
+	if m.previewDiffIndex < 0 {
+		m.previewDiffIndex = 0
+	} else {
+		m.previewDiffIndex++
+		if m.previewDiffIndex >= len(m.previewDiffLines) {
+			m.previewDiffIndex = 0 // Wrap around
+		}
+	}
+
+	m.scrollToPreviewLine(m.previewDiffLines[m.previewDiffIndex].Line)
+}
+
+// jumpToPrevDiff jumps to the previous diff line in preview
+func (m *Model) jumpToPrevDiff() {
+	if len(m.previewDiffLines) == 0 {
+		m.message = "No uncommitted changes"
+		return
+	}
+
+	// If no diff selected yet, start from the end
+	if m.previewDiffIndex < 0 {
+		m.previewDiffIndex = len(m.previewDiffLines) - 1
+	} else {
+		m.previewDiffIndex--
+		if m.previewDiffIndex < 0 {
+			m.previewDiffIndex = len(m.previewDiffLines) - 1 // Wrap around
+		}
+	}
+
+	m.scrollToPreviewLine(m.previewDiffLines[m.previewDiffIndex].Line)
+}
+
+// scrollToPreviewLine scrolls preview to center the given line
+func (m *Model) scrollToPreviewLine(lineNum int) {
+	visibleHeight := m.height - 4
+	if visibleHeight < 1 {
+		visibleHeight = 10
+	}
+
+	// Center the line in viewport
+	targetScroll := lineNum - 1 - visibleHeight/2
+	if targetScroll < 0 {
+		targetScroll = 0
+	}
+
+	maxScroll := len(m.previewContent) - visibleHeight
+	if maxScroll < 0 {
+		maxScroll = 0
+	}
+	if targetScroll > maxScroll {
+		targetScroll = maxScroll
+	}
+
+	m.previewScroll = targetScroll
 }
 
 func (m Model) updateMouseEvent(msg tea.MouseMsg) (tea.Model, tea.Cmd) {

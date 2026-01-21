@@ -376,3 +376,194 @@ func TestGetDisplayInfo_NoAhead(t *testing.T) {
 		t.Errorf("Expected 'main', got %q", display)
 	}
 }
+
+func TestParseGitDiff(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []DiffLine
+	}{
+		{
+			name:     "empty diff",
+			input:    "",
+			expected: nil,
+		},
+		{
+			name: "addition only",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -5,0 +6,2 @@
++new line 1
++new line 2`,
+			expected: []DiffLine{
+				{Line: 6, Type: DiffLineAdded},
+				{Line: 7, Type: DiffLineAdded},
+			},
+		},
+		{
+			name: "deletion only - should produce deletion marker",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -5,2 +4,0 @@
+-deleted line 1
+-deleted line 2`,
+			expected: []DiffLine{
+				{Line: 5, Type: DiffLineDeleted}, // marker at n+1 (next line after gap)
+			},
+		},
+		{
+			name: "single line modification",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -10,1 +10,1 @@
+-old line
++new line`,
+			expected: []DiffLine{
+				{Line: 10, Type: DiffLineModified},
+			},
+		},
+		{
+			name: "multi-line replacement - equal lines",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -10,3 +10,3 @@
+-old line 1
+-old line 2
+-old line 3
++new line 1
++new line 2
++new line 3`,
+			expected: []DiffLine{
+				{Line: 10, Type: DiffLineModified},
+				{Line: 11, Type: DiffLineModified},
+				{Line: 12, Type: DiffLineModified},
+			},
+		},
+		{
+			name: "more additions than deletions",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -10,1 +10,3 @@
+-old line
++new line 1
++new line 2
++new line 3`,
+			expected: []DiffLine{
+				{Line: 10, Type: DiffLineModified},
+				{Line: 11, Type: DiffLineAdded},
+				{Line: 12, Type: DiffLineAdded},
+			},
+		},
+		{
+			name: "more deletions than additions",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -10,3 +10,1 @@
+-old line 1
+-old line 2
+-old line 3
++new line`,
+			expected: []DiffLine{
+				{Line: 10, Type: DiffLineModified},
+			},
+		},
+		{
+			name: "multiple hunks",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -5,1 +5,1 @@
+-old
++new
+@@ -20,0 +20,1 @@
++added line`,
+			expected: []DiffLine{
+				{Line: 5, Type: DiffLineModified},
+				{Line: 20, Type: DiffLineAdded},
+			},
+		},
+		{
+			name: "deletion hunk followed by addition hunk",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -10,2 +9,0 @@
+-deleted 1
+-deleted 2
+@@ -20,0 +18,1 @@
++added`,
+			expected: []DiffLine{
+				{Line: 10, Type: DiffLineDeleted}, // marker at n+1 (next line after gap)
+				{Line: 18, Type: DiffLineAdded},
+			},
+		},
+		{
+			name: "EOF deletion - delete last lines",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -8,3 +7,0 @@
+-line 8
+-line 9
+-line 10`,
+			expected: []DiffLine{
+				{Line: 8, Type: DiffLineDeleted}, // marker at n+1 (will be clamped by loadFileDiff)
+			},
+		},
+		{
+			name: "start of file deletion - delete first lines",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -1,2 +0,0 @@
+-line 1
+-line 2`,
+			expected: []DiffLine{
+				{Line: 1, Type: DiffLineDeleted}, // marker at position 1 (0+1)
+			},
+		},
+		{
+			name: "delete entire file content",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -1,5 +0,0 @@
+-line 1
+-line 2
+-line 3
+-line 4
+-line 5`,
+			expected: []DiffLine{
+				{Line: 1, Type: DiffLineDeleted}, // marker at position 1 (0+1)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := parseGitDiff(tt.input)
+
+			if len(result) != len(tt.expected) {
+				t.Errorf("parseGitDiff() returned %d lines, expected %d", len(result), len(tt.expected))
+				t.Logf("Got: %+v", result)
+				t.Logf("Expected: %+v", tt.expected)
+				return
+			}
+
+			for i, expected := range tt.expected {
+				if result[i].Line != expected.Line {
+					t.Errorf("Line %d: got line number %d, expected %d", i, result[i].Line, expected.Line)
+				}
+				if result[i].Type != expected.Type {
+					t.Errorf("Line %d: got type %d, expected %d", i, result[i].Type, expected.Type)
+				}
+			}
+		})
+	}
+}

@@ -41,6 +41,9 @@ func (m *Model) openPreview() tea.Cmd {
 	m.imageHeight = 0
 	m.imageFormat = ""
 	m.imageSize = 0
+	m.previewDiffLines = nil
+	m.previewDiffMap = nil
+	m.previewDiffIndex = -1
 
 	// Check if image file
 	if isImageFile(node.Path) {
@@ -99,6 +102,8 @@ func (m *Model) openPreview() tea.Cmd {
 	} else {
 		m.previewIsBinary = false
 		m.previewContent = strings.Split(string(content), "\n")
+		// Load diff for text files
+		m.loadFileDiff(node.Path)
 	}
 
 	if truncated {
@@ -107,6 +112,30 @@ func (m *Model) openPreview() tea.Cmd {
 
 	m.inputMode = ModePreview
 	return nil
+}
+
+// loadFileDiff loads VCS diff information for the file
+func (m *Model) loadFileDiff(path string) {
+	diffLines := m.vcsRepo.GetFileDiff(path)
+	if len(diffLines) == 0 {
+		return
+	}
+
+	// Clamp deletion markers that exceed content length (EOF deletions)
+	contentLen := len(m.previewContent)
+	if contentLen > 0 {
+		for i := range diffLines {
+			if diffLines[i].Line > contentLen {
+				diffLines[i].Line = contentLen
+			}
+		}
+	}
+
+	m.previewDiffLines = diffLines
+	m.previewDiffMap = make(map[int]DiffLine)
+	for _, dl := range diffLines {
+		m.previewDiffMap[dl.Line] = dl
+	}
 }
 
 func (m *Model) closePreview() {
@@ -120,6 +149,10 @@ func (m *Model) closePreview() {
 	m.imageHeight = 0
 	m.imageFormat = ""
 	m.imageSize = 0
+	// Reset diff state
+	m.previewDiffLines = nil
+	m.previewDiffMap = nil
+	m.previewDiffIndex = -1
 }
 
 // clearKittyImages sends escape sequence to delete all Kitty graphics

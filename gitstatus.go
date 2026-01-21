@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -222,4 +223,106 @@ func parseGitStatus(index, worktree byte) GitStatus {
 	default:
 		return GitStatusNone
 	}
+}
+
+// GetFileDiff returns changed lines for a file (uncommitted changes)
+func (g *GitRepo) GetFileDiff(path string) []DiffLine {
+	if g.Root == "" {
+		return nil
+	}
+
+	relPath, err := filepath.Rel(g.Root, path)
+	if err != nil {
+		return nil
+	}
+
+	// Get unified diff with no context lines
+	output, err := exec.Command("git", "-C", g.Root, "diff", "-U0", "--", relPath).Output()
+	if err != nil {
+		return nil
+	}
+
+	return parseGitDiff(string(output))
+}
+
+// hunkRegex matches git diff hunk headers: @@ -start,count +start,count @@
+var hunkRegex = regexp.MustCompile(`@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@`)
+
+// parseGitDiff parses git unified diff output and returns changed lines
+func parseGitDiff(output string) []DiffLine {
+	var result []DiffLine
+	lines := strings.Split(output, "\n")
+
+	var currentNewLine int
+	var deletedCount int      // Number of consecutive deleted lines
+	var hunkHasAdditions bool // Whether current hunk has any additions
+
+	for _, line := range lines {
+		// Check for hunk header
+		if matches := hunkRegex.FindStringSubmatch(line); matches != nil {
+			// Handle pending deletion-only hunk (deletions without any additions)
+			if deletedCount > 0 && !hunkHasAdditions {
+				// For deletion-only hunks, marker shows where content was removed
+				markerLine := currentNewLine + 1
+				if markerLine < 1 {
+					markerLine = 1 // Minimum line number is 1
+				}
+				result = append(result, DiffLine{Line: markerLine, Type: DiffLineDeleted})
+			}
+			// Parse new file start line
+			newStart, _ := strconv.Atoi(matches[3])
+			currentNewLine = newStart
+			deletedCount = 0
+			hunkHasAdditions = false
+			continue
+		}
+
+		if len(line) == 0 {
+			continue
+		}
+
+		switch line[0] {
+		case '+':
+			// Skip diff header lines (+++, ---)
+			if strings.HasPrefix(line, "+++") {
+				continue
+			}
+			hunkHasAdditions = true
+			// If we have pending deletions, mark as modified (replacement)
+			if deletedCount > 0 {
+				result = append(result, DiffLine{Line: currentNewLine, Type: DiffLineModified})
+				deletedCount--
+			} else {
+				result = append(result, DiffLine{Line: currentNewLine, Type: DiffLineAdded})
+			}
+			currentNewLine++
+
+		case '-':
+			// Skip diff header lines
+			if strings.HasPrefix(line, "---") {
+				continue
+			}
+			// Count deletions (will be matched with additions for modifications)
+			deletedCount++
+
+		case ' ':
+			// Context line (shouldn't appear with -U0, but handle anyway)
+			// Reset deletion tracking without marking (not a deletion-only change)
+			deletedCount = 0
+			hunkHasAdditions = false
+			currentNewLine++
+		}
+	}
+
+	// Handle trailing deletion-only hunk
+	if deletedCount > 0 && !hunkHasAdditions {
+		// For deletion-only hunks, marker shows where content was removed
+		markerLine := currentNewLine + 1
+		if markerLine < 1 {
+			markerLine = 1 // Minimum line number is 1
+		}
+		result = append(result, DiffLine{Line: markerLine, Type: DiffLineDeleted})
+	}
+
+	return result
 }
