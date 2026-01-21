@@ -256,12 +256,14 @@ func (m *Model) execChafaPreview(path string) tea.Cmd {
 		info = fmt.Sprintf(" %s ", filename)
 	}
 
-	// Use bash to run chafa and wait for keypress
-	// Title with cyan background (matching previewTitleStyle)
-	script := fmt.Sprintf(`clear; printf '\033[46;30m%s\033[0m\n\n'; chafa --format kitty --passthrough tmux --animate off --size %dx%d -- %q; printf '\n\033[90mPress any key to close...\033[0m'; read -n 1`,
-		info, width, height, path)
+	// Use shell script with environment variables to prevent injection attacks.
+	// Data is passed via env vars ($INFO, $IMAGE_PATH) instead of string interpolation.
+	// Title uses cyan background (matching previewTitleStyle).
+	script := fmt.Sprintf(`clear; printf '\033[46;30m%%s\033[0m\n\n' "$INFO"; chafa --format kitty --passthrough tmux --animate off --size %dx%d -- "$IMAGE_PATH"; printf '\n\033[90mPress any key to close...\033[0m'; read -n 1`,
+		width, height)
 
 	cmd := exec.Command("bash", "-c", script)
+	cmd.Env = append(os.Environ(), "INFO="+info, "IMAGE_PATH="+path)
 	return tea.ExecProcess(cmd, func(err error) tea.Msg {
 		return tea.ClearScreen // Return to normal view after chafa exits
 	})
