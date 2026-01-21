@@ -333,9 +333,13 @@ func (m Model) renderStatusBar() string {
 	}
 
 	// VCS info (branch for Git, change ID for JJ) with type indicator
-	if vcsInfo := m.vcsRepo.GetDisplayInfo(); vcsInfo != "" {
+	if m.vcsRepo.IsInsideRepo() {
 		typePrefix := m.vcsForceType.String()
-		leftParts = append(leftParts, fmt.Sprintf(" [%s] %s", typePrefix, vcsInfo))
+		if vcsInfo := m.vcsRepo.GetDisplayInfo(); vcsInfo != "" {
+			leftParts = append(leftParts, fmt.Sprintf(" [%s] %s", typePrefix, vcsInfo))
+		} else {
+			leftParts = append(leftParts, fmt.Sprintf(" [%s]", typePrefix))
+		}
 	}
 
 	leftStatus := strings.Join(leftParts, " | ")

@@ -58,12 +58,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.watcherEnabled {
 			m.tree.Refresh()
 
-			// Re-detect VCS type in case it changed (e.g., jj init, git init)
-			// This ensures we use the correct VCS after repository changes
-			newVCS := NewVCSRepo(m.tree.Root.Path)
-			if newVCS.GetType() != m.vcsRepo.GetType() {
-				m.vcsRepo = newVCS
+			// Respect forced VCS type, only re-detect in Auto mode
+			if m.vcsForceType == VCSTypeAuto {
+				// Re-detect VCS type in case it changed (e.g., jj init, git init)
+				newVCS := NewVCSRepo(m.tree.Root.Path)
+				if newVCS.GetType() != m.vcsRepo.GetType() {
+					m.vcsRepo = newVCS
+				} else {
+					m.vcsRepo.Refresh(m.tree.Root.Path)
+				}
 			} else {
+				// Keep forced type, just refresh
 				m.vcsRepo.Refresh(m.tree.Root.Path)
 			}
 
@@ -736,6 +741,9 @@ func (m *Model) cycleVCSType() {
 	actualType := m.vcsRepo.GetType().String()
 	if m.vcsForceType == VCSTypeAuto {
 		m.message = fmt.Sprintf("VCS: %s (detected: %s)", typeName, actualType)
+	} else if typeName != actualType {
+		// Fallback occurred (e.g., JJ forced but not available)
+		m.message = fmt.Sprintf("VCS: %s (fallback: %s)", typeName, actualType)
 	} else {
 		m.message = fmt.Sprintf("VCS: %s", typeName)
 	}
