@@ -103,32 +103,49 @@ func (j *JJRepo) loadStatuses() {
 	}
 
 	lines := strings.Split(string(output), "\n")
-	inWorkingCopyChanges := false
+	currentSection := ""
 
 	for _, line := range lines {
 		// Check for section headers
 		if strings.HasPrefix(line, "Working copy changes:") {
-			inWorkingCopyChanges = true
+			currentSection = "changes"
 			continue
 		}
-		if strings.HasPrefix(line, "Working copy :") || strings.HasPrefix(line, "Parent commit:") {
-			inWorkingCopyChanges = false
+		if strings.HasPrefix(line, "Untracked paths:") {
+			currentSection = "untracked"
+			continue
+		}
+		if strings.HasPrefix(line, "Working copy ") || strings.HasPrefix(line, "Parent commit:") {
+			currentSection = ""
 			continue
 		}
 
-		if !inWorkingCopyChanges {
+		if currentSection == "" {
 			continue
 		}
 
-		// Parse status line (e.g., "M file.txt" or "A dir/file.txt")
+		// Parse status line
 		line = strings.TrimSpace(line)
 		if len(line) < 2 {
 			continue
 		}
 
-		// Status character and file path
-		statusChar := line[0]
-		filePath := strings.TrimSpace(line[1:])
+		var statusChar byte
+		var filePath string
+
+		if currentSection == "untracked" {
+			// Untracked format: "? filename"
+			if line[0] == '?' {
+				statusChar = '?'
+				filePath = strings.TrimSpace(line[1:])
+			} else {
+				continue
+			}
+		} else {
+			// Working copy changes format: "M filename"
+			statusChar = line[0]
+			filePath = strings.TrimSpace(line[1:])
+		}
 
 		if filePath == "" {
 			continue
@@ -203,6 +220,8 @@ func parseJJStatus(status byte) VCSStatus {
 		return VCSStatusRenamed
 	case 'C':
 		return VCSStatusConflict
+	case '?':
+		return VCSStatusUntracked
 	default:
 		return VCSStatusNone
 	}

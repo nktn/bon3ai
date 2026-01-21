@@ -58,8 +58,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.watcherEnabled {
 			m.tree.Refresh()
 
-			// Refresh VCS status synchronously
-			m.vcsRepo.Refresh(m.tree.Root.Path)
+			// Re-detect VCS type in case it changed (e.g., jj init, git init)
+			// This ensures we use the correct VCS after repository changes
+			newVCS := NewVCSRepo(m.tree.Root.Path)
+			if newVCS.GetType() != m.vcsRepo.GetType() {
+				m.vcsRepo = newVCS
+			} else {
+				m.vcsRepo.Refresh(m.tree.Root.Path)
+			}
 
 			// Add ghost nodes for deleted files
 			m.tree.AddGhostNodes(m.vcsRepo.GetDeletedFiles())

@@ -182,8 +182,16 @@ stateDiagram-v2
 ## VCS Integration
 
 インターフェースパターンで抽象化:
+- **vcs.go**: `VCSRepo` インターフェース、VCS 自動検出 (JJ 優先)
 - **gitstatus.go**: `git status --porcelain`
 - **jjstatus.go**: `jj status` / `jj log`
+  - `Working copy changes:` セクション: 変更ファイル (M/A/D/R/C)
+  - `Untracked paths:` セクション: 未追跡ファイル (?)
+
+**VCS タイプ検出**:
+- JJ > Git の優先順位
+- `.jj` ディレクトリと `jj` コマンドの両方が必要
+- Watcher イベント時に VCS タイプを再検出
 
 親ディレクトリへステータス伝播。
 
