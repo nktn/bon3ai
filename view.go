@@ -30,7 +30,12 @@ func (m Model) View() string {
 	b.WriteString("\n")
 
 	// Tree view
+	// Reserve space: 1 for title, 1 for status bar
 	visibleHeight := m.height - 2
+	// Reserve extra space for input popup when active
+	if m.inputMode != ModeNormal && m.inputMode != ModeConfirmDelete {
+		visibleHeight -= 3 // Input popup takes ~3 lines
+	}
 	if visibleHeight < 1 {
 		visibleHeight = 10
 	}
@@ -80,7 +85,8 @@ func (m Model) renderPreview() string {
 	b.WriteString("\n")
 
 	// Content
-	visibleHeight := m.height - 4
+	// Reserve space: 1 for title, 1 for status bar
+	visibleHeight := m.height - 2
 	if visibleHeight < 1 {
 		visibleHeight = 10
 	}

@@ -222,6 +222,34 @@ func getFormatFromExtension(path string) string {
 
 // Image preview loading
 
+// detectChafaFormat detects the best chafa output format for the current terminal.
+// Returns format name and whether it uses graphics protocol (needs cleanup on exit).
+func detectChafaFormat() (format string, usesGraphics bool) {
+	termProgram := os.Getenv("TERM_PROGRAM")
+	term := os.Getenv("TERM")
+	kittyWindow := os.Getenv("KITTY_WINDOW_ID")
+
+	// Kitty terminal - use kitty graphics protocol
+	if kittyWindow != "" || termProgram == "kitty" {
+		return "kitty", true
+	}
+
+	// iTerm2 - use iterm inline images
+	if termProgram == "iTerm.app" {
+		return "iterm", true
+	}
+
+	// Check for sixel support (some terminals like mlterm, xterm with +sixel)
+	// Common sixel-capable terminals
+	if strings.Contains(term, "mlterm") || strings.Contains(term, "xterm") {
+		// Could potentially use sixels, but symbols is safer
+		return "symbols", false
+	}
+
+	// Default to symbols (works everywhere)
+	return "symbols", false
+}
+
 func (m *Model) loadImagePreview(path string) ([]string, error) {
 	// Calculate size based on terminal dimensions
 	width := m.width - 2
@@ -234,10 +262,12 @@ func (m *Model) loadImagePreview(path string) ([]string, error) {
 		height = 5
 	}
 
-	// Try chafa first (high quality with Kitty protocol)
+	// Try chafa first
 	if _, err := exec.LookPath("chafa"); err == nil {
+		format, usesGraphics := detectChafaFormat()
+
 		cmd := exec.Command("chafa",
-			"--format", "kitty",
+			"--format", format,
 			"--animate", "off",
 			"--polite", "on",
 			"--size", fmt.Sprintf("%dx%d", width, height),
@@ -245,8 +275,8 @@ func (m *Model) loadImagePreview(path string) ([]string, error) {
 			path,
 		)
 		output, err := cmd.Output()
-		if err == nil {
-			m.previewIsImage = true
+		if err == nil && len(output) > 0 {
+			m.previewIsImage = usesGraphics
 			return strings.Split(string(output), "\n"), nil
 		}
 	}
