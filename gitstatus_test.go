@@ -503,6 +503,46 @@ func TestParseGitDiff(t *testing.T) {
 				{Line: 18, Type: DiffLineAdded},
 			},
 		},
+		{
+			name: "EOF deletion - delete last lines",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -8,3 +7,0 @@
+-line 8
+-line 9
+-line 10`,
+			expected: []DiffLine{
+				{Line: 8, Type: DiffLineDeleted}, // marker at n+1 (will be clamped by loadFileDiff)
+			},
+		},
+		{
+			name: "start of file deletion - delete first lines",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -1,2 +0,0 @@
+-line 1
+-line 2`,
+			expected: []DiffLine{
+				{Line: 1, Type: DiffLineDeleted}, // marker at position 1 (0+1)
+			},
+		},
+		{
+			name: "delete entire file content",
+			input: `diff --git a/file.txt b/file.txt
+--- a/file.txt
++++ b/file.txt
+@@ -1,5 +0,0 @@
+-line 1
+-line 2
+-line 3
+-line 4
+-line 5`,
+			expected: []DiffLine{
+				{Line: 1, Type: DiffLineDeleted}, // marker at position 1 (0+1)
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -256,28 +256,22 @@ func parseGitDiff(output string) []DiffLine {
 	var currentNewLine int
 	var deletedCount int      // Number of consecutive deleted lines
 	var hunkHasAdditions bool // Whether current hunk has any additions
-	var hunkNewCount int      // Number of lines added in current hunk (from header)
 
 	for _, line := range lines {
 		// Check for hunk header
 		if matches := hunkRegex.FindStringSubmatch(line); matches != nil {
 			// Handle pending deletion-only hunk (deletions without any additions)
-			if deletedCount > 0 && !hunkHasAdditions && currentNewLine > 0 {
-				// For deletion-only hunks (+n,0), marker should be at n+1 (next line after gap)
-				markerLine := currentNewLine
-				if hunkNewCount == 0 {
-					markerLine = currentNewLine + 1
+			if deletedCount > 0 && !hunkHasAdditions {
+				// For deletion-only hunks, marker shows where content was removed
+				markerLine := currentNewLine + 1
+				if markerLine < 1 {
+					markerLine = 1 // Minimum line number is 1
 				}
 				result = append(result, DiffLine{Line: markerLine, Type: DiffLineDeleted})
 			}
-			// Parse new file start line and count
+			// Parse new file start line
 			newStart, _ := strconv.Atoi(matches[3])
-			newCount := 1 // default if not specified
-			if matches[4] != "" {
-				newCount, _ = strconv.Atoi(matches[4])
-			}
 			currentNewLine = newStart
-			hunkNewCount = newCount
 			deletedCount = 0
 			hunkHasAdditions = false
 			continue
@@ -321,11 +315,11 @@ func parseGitDiff(output string) []DiffLine {
 	}
 
 	// Handle trailing deletion-only hunk
-	if deletedCount > 0 && !hunkHasAdditions && currentNewLine > 0 {
-		// For deletion-only hunks (+n,0), marker should be at n+1 (next line after gap)
-		markerLine := currentNewLine
-		if hunkNewCount == 0 {
-			markerLine = currentNewLine + 1
+	if deletedCount > 0 && !hunkHasAdditions {
+		// For deletion-only hunks, marker shows where content was removed
+		markerLine := currentNewLine + 1
+		if markerLine < 1 {
+			markerLine = 1 // Minimum line number is 1
 		}
 		result = append(result, DiffLine{Line: markerLine, Type: DiffLineDeleted})
 	}

@@ -121,6 +121,16 @@ func (m *Model) loadFileDiff(path string) {
 		return
 	}
 
+	// Clamp deletion markers that exceed content length (EOF deletions)
+	contentLen := len(m.previewContent)
+	if contentLen > 0 {
+		for i := range diffLines {
+			if diffLines[i].Line > contentLen {
+				diffLines[i].Line = contentLen
+			}
+		}
+	}
+
 	m.previewDiffLines = diffLines
 	m.previewDiffMap = make(map[int]DiffLine)
 	for _, dl := range diffLines {

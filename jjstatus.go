@@ -223,7 +223,11 @@ func (j *JJRepo) GetFileDiff(path string) []DiffLine {
 	// Use "--" to prevent paths starting with "-" from being misinterpreted as options
 	output, err := exec.Command("jj", "-R", j.Root, "diff", "--git", "--context", "0", "--", relPath).Output()
 	if err != nil {
-		return nil
+		// Fallback for older jj versions that don't support --context
+		output, err = exec.Command("jj", "-R", j.Root, "diff", "--git", "--", relPath).Output()
+		if err != nil {
+			return nil
+		}
 	}
 
 	// JJ uses git-style unified diff, so we can reuse the git parser
