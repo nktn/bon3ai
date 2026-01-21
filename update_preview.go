@@ -58,6 +58,13 @@ func (m *Model) openPreview() tea.Cmd {
 		m.imageFormat = imgFormat
 		m.imageSize = imgSize
 
+		// In tmux, use tea.Exec to run chafa directly (bypasses Bubble Tea rendering)
+		if os.Getenv("TMUX") != "" {
+			if _, err := exec.LookPath("chafa"); err == nil {
+				return m.execChafaPreview(node.Path)
+			}
+		}
+
 		lines, err := m.loadImagePreview(node.Path)
 		if err != nil {
 			m.message = err.Error()
@@ -220,35 +227,47 @@ func getFormatFromExtension(path string) string {
 	return ""
 }
 
-// Image preview loading
-
-// detectChafaFormat detects the best chafa output format for the current terminal.
-// Returns format name and whether it uses graphics protocol (needs cleanup on exit).
-func detectChafaFormat() (format string, usesGraphics bool) {
-	termProgram := os.Getenv("TERM_PROGRAM")
-	term := os.Getenv("TERM")
-	kittyWindow := os.Getenv("KITTY_WINDOW_ID")
-
-	// Kitty terminal - use kitty graphics protocol
-	if kittyWindow != "" || termProgram == "kitty" {
-		return "kitty", true
+// execChafaPreview runs chafa directly via tea.Exec for tmux compatibility
+func (m *Model) execChafaPreview(path string) tea.Cmd {
+	width := m.width - 2
+	height := m.height - 4
+	if width < 10 {
+		width = 10
+	}
+	if height < 5 {
+		height = 5
 	}
 
-	// iTerm2 - use iterm inline images
-	if termProgram == "iTerm.app" {
-		return "iterm", true
+	// Build info line (same format as view.go renderPreview)
+	filename := filepath.Base(path)
+	var info string
+	if m.imageWidth > 0 && m.imageHeight > 0 {
+		info = fmt.Sprintf(" %s (%dx%d %s, %s) ",
+			filename,
+			m.imageWidth, m.imageHeight,
+			m.imageFormat,
+			formatFileSize(m.imageSize))
+	} else if m.imageFormat != "" {
+		info = fmt.Sprintf(" %s (%s, %s) ",
+			filename,
+			m.imageFormat,
+			formatFileSize(m.imageSize))
+	} else {
+		info = fmt.Sprintf(" %s ", filename)
 	}
 
-	// Check for sixel support (some terminals like mlterm, xterm with +sixel)
-	// Common sixel-capable terminals
-	if strings.Contains(term, "mlterm") || strings.Contains(term, "xterm") {
-		// Could potentially use sixels, but symbols is safer
-		return "symbols", false
-	}
+	// Use bash to run chafa and wait for keypress
+	// Title with cyan background (matching previewTitleStyle)
+	script := fmt.Sprintf(`clear; printf '\033[46;30m%s\033[0m\n\n'; chafa --format kitty --passthrough tmux --animate off --size %dx%d -- %q; printf '\n\033[90mPress any key to close...\033[0m'; read -n 1`,
+		info, width, height, path)
 
-	// Default to symbols (works everywhere)
-	return "symbols", false
+	cmd := exec.Command("bash", "-c", script)
+	return tea.ExecProcess(cmd, func(err error) tea.Msg {
+		return tea.ClearScreen // Return to normal view after chafa exits
+	})
 }
+
+// Image preview loading
 
 func (m *Model) loadImagePreview(path string) ([]string, error) {
 	// Calculate size based on terminal dimensions
@@ -262,21 +281,20 @@ func (m *Model) loadImagePreview(path string) ([]string, error) {
 		height = 5
 	}
 
-	// Try chafa first
+	// Try chafa first (high quality with Kitty protocol)
+	// Note: tmux uses execChafaPreview instead, so this is for non-tmux only
 	if _, err := exec.LookPath("chafa"); err == nil {
-		format, usesGraphics := detectChafaFormat()
-
-		cmd := exec.Command("chafa",
-			"--format", format,
+		args := []string{
+			"--format", "kitty",
 			"--animate", "off",
 			"--polite", "on",
 			"--size", fmt.Sprintf("%dx%d", width, height),
-			"--", // Prevent option injection from filenames starting with -
-			path,
-		)
+		}
+		args = append(args, "--", path) // Prevent option injection from filenames starting with -
+		cmd := exec.Command("chafa", args...)
 		output, err := cmd.Output()
-		if err == nil && len(output) > 0 {
-			m.previewIsImage = usesGraphics
+		if err == nil {
+			m.previewIsImage = true
 			return strings.Split(string(output), "\n"), nil
 		}
 	}
