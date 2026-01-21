@@ -332,9 +332,10 @@ func (m Model) renderStatusBar() string {
 		leftParts = append(leftParts, "[hidden]")
 	}
 
-	// VCS info (branch for Git, change ID for JJ)
+	// VCS info (branch for Git, change ID for JJ) with type indicator
 	if vcsInfo := m.vcsRepo.GetDisplayInfo(); vcsInfo != "" {
-		leftParts = append(leftParts, fmt.Sprintf(" %s", vcsInfo))
+		typePrefix := m.vcsForceType.String()
+		leftParts = append(leftParts, fmt.Sprintf(" [%s] %s", typePrefix, vcsInfo))
 	}
 
 	leftStatus := strings.Join(leftParts, " | ")
