@@ -88,7 +88,7 @@ func (m Model) View() string
 
 ## 出力フォーマット
 
-```markdown
+~~~markdown
 ## TUI Design: <コンポーネント名>
 
 ### OpenTUI Reference
@@ -119,7 +119,7 @@ func (m Model) View() string
 
 ### Layout
 <ASCII art or description>
-```
+~~~
 
 ## 使用タイミング
 
